@@ -27,3 +27,21 @@ WHERE available = :available
 ''',
                               available=available)
         return [Product(*row) for row in rows]
+
+    @staticmethod
+    def get_top_k(k=10):
+
+        try:
+            k = int(k)
+            if k <= 0:
+                k = 10
+        except Exception:
+            k = 10
+
+        rows = app.db.execute('''
+SELECT id, name, price, available
+FROM Products
+ORDER BY price DESC
+LIMIT :k
+''', k=k)
+        return [Product(*row) for row in rows] if rows else []

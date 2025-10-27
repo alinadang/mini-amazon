@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Product Browser</h2>
+
+  <form method="get" class="form-inline" style="margin-bottom:12px;">
+    <label style="margin-right:8px">
+      Show top
+      <input name="k" type="number" value="{{ k }}" min="1" max="2000" style="width:90px; margin-left:6px"/>
+    </label>
+
+    <label style="margin-left:12px; margin-right:8px">
+      Sort
+      <select name="sort" class="form-control form-control-sm" style="display:inline-block; width:160px; margin-left:6px">
+        <option value="price" {% if sort=='price' %}selected{% endif %}>Price</option>
+        <option value="name" {% if sort=='name' %}selected{% endif %}>Name</option>
+      </select>
+    </label>
+
+    <label style="margin-left:12px; margin-right:8px">
+      Direction
+      <select name="dir" class="form-control form-control-sm" style="display:inline-block; width:120px; margin-left:6px">
+        <option value="">(default)</option>
+        <option value="asc" {% if dir=='asc' %}selected{% endif %}>Ascending</option>
+        <option value="desc" {% if dir=='desc' %}selected{% endif %}>Descending</option>
+      </select>
+    </label>
+
+    <button type="submit" class="btn btn-primary btn-sm" style="margin-left:12px">Apply</button>
+    <a href="{{ url_for('products_api.product_browser') }}" class="btn btn-link btn-sm" style="margin-left:8px">Reset</a>
+  </form>
+
+  {% if error %}
+    <div class="alert alert-danger">Error: {{ error }}</div>
+  {% endif %}
+
+  {% if products and products|length > 0 %}
+    <table class="table table-bordered table-striped">
+      <thead class="thead-dark">
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th>Available</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+          <tr>
+            <td><a href="/product/{{ p.id }}">{{ p.name }}</a></td>
+            <td>${{ '%.2f'|format(p.price or 0) }}</td>
+            <td>{% if p.available %}Yes{% else %}No{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No products found.</p>
+  {% endif %}
+</div>
+{% endblock %}

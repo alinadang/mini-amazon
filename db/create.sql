@@ -29,3 +29,12 @@ CREATE TABLE Wishes (
     pid INT NOT NULL REFERENCES Products(id),
     time_added timestamp without time zone NOT NULL DEFAULT (current_timestamp AT TIME ZONE 'UTC')
 );
+
+-- inventory
+CREATE TABLE IF NOT EXISTS Inventory (
+    seller_id INT NOT NULL REFERENCES Users(id),
+    product_id INT NOT NULL REFERENCES Products(id),
+    quantity INT NOT NULL DEFAULT 0,
+    seller_price DECIMAL(12,2),
+    PRIMARY KEY (seller_id, product_id)
+);

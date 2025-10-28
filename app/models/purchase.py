@@ -1,6 +1,5 @@
 from flask import current_app as app
 
-
 class Purchase:
     def __init__(self, id, uid, pid, time_purchased):
         self.id = id

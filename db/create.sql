@@ -31,7 +31,7 @@ CREATE TABLE Wishes (
 );
 
 -- inventory
-CREATE TABLE IF NOT EXISTS Inventory (
+CREATE TABLE Inventory (
     seller_id INT NOT NULL REFERENCES Users(id),
     product_id INT NOT NULL REFERENCES Products(id),
     quantity INT NOT NULL DEFAULT 0,

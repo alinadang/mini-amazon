@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Seller {{ seller.firstname }} {{ seller.lastname }}</title>
+  <script src="{{ url_for('static', filename='seller_inventory.js') }}" defer></script>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 16px; }
+    .seller-item { border-bottom: 1px solid #eee; padding: 8px 0; }
+    .seller-item h4 { margin: 0 0 4px 0; font-size: 1rem; }
+    .meta { color: #666; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <a href="{{ url_for('index.index') }}">← Home</a>
+  <h1>{{ seller.firstname }} {{ seller.lastname }}</h1>
+  <p class="meta">Public email: {{ seller.email }} • seller id: {{ seller.id }}</p>
+
+  <h2>Inventory</h2>
+  <div id="seller-inventory" data-seller-id="{{ seller.id }}">Loading inventory…</div>
+</body>
+</html>

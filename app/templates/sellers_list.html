@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sellers</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 16px; }
+    ul { padding-left: 18px; }
+    li { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <a href="{{ url_for('index.index') }}">Home</a> | <strong>Sellers</strong>
+  <h1>Sellers</h1>
+  <ul>
+    {% for s in sellers %}
+      <li>
+        <a href="{{ url_for('sellers.seller_profile', seller_id=s.id) }}">
+          {{ s.firstname }} {{ s.lastname }} (id={{ s.id }})
+        </a>
+        — {{ s.email }} — items: {{ s.item_count }}
+      </li>
+    {% else %}
+      <li>No sellers found.</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

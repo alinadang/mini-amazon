@@ -79,3 +79,187 @@ def seller_profile(seller_id):
 @login_required
 def my_seller_dashboard():
     return redirect(url_for('.seller_profile', seller_id=current_user.id))
+
+@sellers_bp.route('/api/seller_inventory/add', methods=['POST'])
+@login_required
+def add_to_inventory():
+    """Add a product to seller's inventory"""
+    data = request.get_json()
+    product_id = data.get('product_id')
+    quantity = data.get('quantity', 0)
+    seller_price = data.get('seller_price')
+    
+    if not product_id:
+        return jsonify({"error": "product_id required"}), 400
+    
+    db = current_app.db
+    try:
+        # Check if product exists
+        product_check = list(db.execute("SELECT id FROM Products WHERE id = :pid", pid=product_id))
+        if not product_check:
+            return jsonify({"error": "Product does not exist"}), 404
+            
+        db.execute("""
+            INSERT INTO Inventory (seller_id, product_id, quantity, seller_price)
+            VALUES (:seller_id, :product_id, :quantity, :seller_price)
+            ON CONFLICT (seller_id, product_id) 
+            DO UPDATE SET quantity = :quantity, seller_price = :seller_price
+        """, seller_id=current_user.id, product_id=product_id, 
+             quantity=quantity, seller_price=seller_price)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@sellers_bp.route('/api/seller_inventory/update', methods=['POST'])
+@login_required
+def update_inventory():
+    """Update quantity or price for existing inventory item"""
+    data = request.get_json()
+    product_id = data.get('product_id')
+    quantity = data.get('quantity')
+    seller_price = data.get('seller_price')
+    
+    if not product_id:
+        return jsonify({"error": "product_id required"}), 400
+    
+    db = current_app.db
+    try:
+        db.execute("""
+            UPDATE Inventory 
+            SET quantity = :quantity, seller_price = :seller_price
+            WHERE seller_id = :seller_id AND product_id = :product_id
+        """, seller_id=current_user.id, product_id=product_id,
+             quantity=quantity, seller_price=seller_price)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@sellers_bp.route('/api/seller_inventory/remove', methods=['POST'])
+@login_required
+def remove_from_inventory():
+    """Remove a product from seller's inventory"""
+    data = request.get_json()
+    product_id = data.get('product_id')
+    
+    if not product_id:
+        return jsonify({"error": "product_id required"}), 400
+    
+    db = current_app.db
+    try:
+        db.execute("""
+            DELETE FROM Inventory 
+            WHERE seller_id = :seller_id AND product_id = :product_id
+        """, seller_id=current_user.id, product_id=product_id)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@sellers_bp.route('/api/seller_orders', methods=['GET'])
+@login_required
+def seller_orders_api():
+    """Get all orders for this seller"""
+    status_filter = request.args.get('status', 'all')
+    
+    db = current_app.db
+    query = """
+        SELECT DISTINCT o.id AS order_id,
+               o.order_date,
+               o.total_amount,
+               u.firstname || ' ' || u.lastname AS buyer_name,
+               u.email AS buyer_email,
+               COUNT(oi.id) AS item_count,
+               STRING_AGG(DISTINCT oi.fulfillment_status, ',') AS statuses
+        FROM Orders o
+        JOIN OrderItems oi ON o.id = oi.order_id
+        JOIN Users u ON o.user_id = u.id
+        WHERE oi.seller_id = :seller_id
+    """
+    
+    if status_filter != 'all':
+        query += " AND oi.fulfillment_status = :status"
+    
+    query += """
+        GROUP BY o.id, o.order_date, o.total_amount, u.firstname, u.lastname, u.email
+        ORDER BY o.order_date DESC
+    """
+    
+    params = {'seller_id': current_user.id}
+    if status_filter != 'all':
+        params['status'] = status_filter
+        
+    rows = db.execute(query, **params)
+    
+    orders = []
+    for row in rows:
+        orders.append({
+            'order_id': row[0],
+            'order_date': str(row[1]),
+            'total_amount': float(row[2]) if row[2] else 0,
+            'buyer_name': row[3],
+            'buyer_email': row[4],
+            'item_count': row[5],
+            'status': row[6]
+        })
+    
+    return jsonify(orders)
+
+
+@sellers_bp.route('/api/order_items/<int:order_id>', methods=['GET'])
+@login_required
+def get_order_items(order_id):
+    """Get line items for a specific order (only this seller's items)"""
+    db = current_app.db
+    rows = db.execute("""
+        SELECT oi.id, oi.product_id, p.name, oi.quantity, oi.price,
+               oi.fulfillment_status, oi.fulfilled_date
+        FROM OrderItems oi
+        JOIN Products p ON oi.product_id = p.id
+        WHERE oi.order_id = :order_id AND oi.seller_id = :seller_id
+        ORDER BY oi.id
+    """, order_id=order_id, seller_id=current_user.id)
+    
+    items = []
+    for row in rows:
+        items.append({
+            'id': row[0],
+            'product_id': row[1],
+            'name': row[2],
+            'quantity': row[3],
+            'price': float(row[4]) if row[4] else 0,
+            'fulfillment_status': row[5],
+            'fulfilled_date': str(row[6]) if row[6] else None
+        })
+    
+    return jsonify(items)
+
+
+@sellers_bp.route('/api/fulfill_item', methods=['POST'])
+@login_required
+def fulfill_item():
+    """Mark an order item as fulfilled"""
+    data = request.get_json()
+    item_id = data.get('item_id')
+    
+    if not item_id:
+        return jsonify({"error": "item_id required"}), 400
+    
+    db = current_app.db
+    try:
+        db.execute("""
+            UPDATE OrderItems 
+            SET fulfillment_status = 'fulfilled',
+                fulfilled_date = CURRENT_TIMESTAMP
+            WHERE id = :item_id AND seller_id = :seller_id
+        """, item_id=item_id, seller_id=current_user.id)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@sellers_bp.route('/seller/orders')
+@login_required
+def seller_orders_page():
+    """Page for sellers to view and fulfill orders"""
+    return render_template('seller_orders.html')

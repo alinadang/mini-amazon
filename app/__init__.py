@@ -31,4 +31,7 @@ def create_app():
     from .cart import cart_bp
     app.register_blueprint(cart_bp)
 
+    from .social import social_bp
+    app.register_blueprint(social_bp)
+
     return app

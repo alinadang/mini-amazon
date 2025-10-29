@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Latest Reviews</h2>
+  <p class="text-muted">Enter a user ID below to see their 5 most recent reviews.</p>
+
+  <!-- 🔹 User ID form -->
+  <form method="get" action="{{ url_for('social.reviews_page') }}" class="form-inline mb-3">
+    <label for="user_id" class="mr-2">User ID:</label>
+    <input
+      type="number"
+      id="user_id"
+      name="user_id"
+      class="form-control mr-2"
+      value="{{ user_id or '' }}"
+      placeholder="e.g. 0"
+      min="0"
+      style="width:120px;"
+      required
+    >
+    <button type="submit" class="btn btn-primary">Show Reviews</button>
+  </form>
+
+  {% if error %}
+    <div class="alert alert-danger mt-3">{{ error }}</div>
+  {% endif %}
+
+  {% if not items or items|length == 0 %}
+    <p class="mt-3">No reviews yet for user {{ user_id }}.</p>
+  {% else %}
+    <table class="table table-bordered table-striped mt-3">
+      <thead class="thead-dark">
+        <tr>
+          <th>Product ID</th>
+          <th>Date</th>
+          <th>Review</th>
+          <th>Stars</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in items %}
+        <tr>
+          <td>{{ r.product_id }}</td>
+          <td>{{ r.date_reviewed }}</td>
+          <td>{{ r.comment }}</td>
+          <td>
+            {% set stars = (r.rating|int) %}
+            {{ '★' * stars }}{{ '☆' * (5 - stars) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

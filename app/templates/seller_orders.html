@@ -1,0 +1,157 @@
+<!doctype html>
+<html>
+<head>
+ <meta charset="utf-8">
+ <title>My Orders to Fulfill</title>
+ <style>
+   body { font-family: system-ui; padding: 16px; max-width: 1200px; margin: 0 auto; }
+   .order-card { border: 1px solid #ddd; padding: 16px; margin: 16px 0; border-radius: 4px; }
+   .order-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+   .line-item { padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+   button { padding: 6px 12px; cursor: pointer; }
+   .fulfilled { background: #d4edda; }
+   .pending { background: #fff3cd; }
+   .filter-buttons { margin: 20px 0; }
+   .filter-buttons button { margin-right: 8px; }
+ </style>
+</head>
+<body>
+ <a href="{{ url_for('index.index') }}">← Home</a> |
+ <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">My Seller Profile</a>
+  <h1>Orders to Fulfill</h1>
+  <div class="filter-buttons">
+   <strong>Filter:</strong>
+   <button onclick="loadOrders('all')">All Orders</button>
+   <button onclick="loadOrders('pending')">Pending Only</button>
+   <button onclick="loadOrders('fulfilled')">Fulfilled Only</button>
+ </div>
+  <div id="orders-container">Loading orders...</div>
+
+
+ <script>
+   function loadOrders(status = 'all') {
+     fetch(`/api/seller_orders?status=${status}`)
+       .then(r => r.json())
+       .then(orders => {
+         const container = document.getElementById('orders-container');
+         container.innerHTML = '';
+        
+         if (orders.length === 0) {
+           container.innerHTML = '<p>No orders found.</p>';
+           return;
+         }
+        
+         orders.forEach(order => {
+           const card = document.createElement('div');
+           card.className = 'order-card';
+           card.innerHTML = `
+             <div class="order-header">
+               <div>
+                 <strong>Order #${order.order_id}</strong><br>
+                 <small>${order.order_date}</small>
+               </div>
+               <div style="text-align: right;">
+                 <strong>${order.buyer_name}</strong><br>
+                 <small>${order.buyer_email}</small>
+               </div>
+             </div>
+             <div style="margin-bottom: 10px;">
+               Total: $${order.total_amount.toFixed(2)} |
+               Items: ${order.item_count} |
+               Status: ${order.status}
+             </div>
+             <button onclick="toggleOrderItems(${order.order_id}, this)">Show Items</button>
+             <div id="items-${order.order_id}" style="display:none; margin-top: 12px; border-top: 2px solid #ddd; padding-top: 12px;"></div>
+           `;
+           container.appendChild(card);
+         });
+       })
+       .catch(err => {
+         document.getElementById('orders-container').innerHTML = '<p>Error loading orders.</p>';
+         console.error(err);
+       });
+   }
+
+
+   function toggleOrderItems(orderId, btn) {
+     const itemsDiv = document.getElementById(`items-${orderId}`);
+    
+     if (itemsDiv.style.display === 'block') {
+       itemsDiv.style.display = 'none';
+       btn.textContent = 'Show Items';
+       return;
+     }
+    
+     fetch(`/api/order_items/${orderId}`)
+       .then(r => r.json())
+       .then(items => {
+         itemsDiv.innerHTML = '';
+        
+         if (items.length === 0) {
+           itemsDiv.innerHTML = '<p>No items found for this order.</p>';
+         }
+        
+         items.forEach(item => {
+           const div = document.createElement('div');
+           div.className = `line-item ${item.fulfillment_status}`;
+          
+           const leftSide = document.createElement('div');
+           leftSide.innerHTML = `
+             <strong>${item.name}</strong> (Product #${item.product_id})<br>
+             <small>Quantity: ${item.quantity} × $${item.price.toFixed(2)} = $${(item.quantity * item.price).toFixed(2)}</small><br>
+             <small>Status: <strong>${item.fulfillment_status}</strong></small>
+             ${item.fulfilled_date ? `<br><small>Fulfilled: ${item.fulfilled_date}</small>` : ''}
+           `;
+          
+           const rightSide = document.createElement('div');
+           if (item.fulfillment_status === 'pending') {
+             rightSide.innerHTML = `<button onclick="fulfillItem(${item.id})">Mark as Fulfilled</button>`;
+           } else {
+             rightSide.innerHTML = `<span style="color: green;">✓ Fulfilled</span>`;
+           }
+          
+           div.appendChild(leftSide);
+           div.appendChild(rightSide);
+           itemsDiv.appendChild(div);
+         });
+        
+         itemsDiv.style.display = 'block';
+         btn.textContent = 'Hide Items';
+       })
+       .catch(err => {
+         itemsDiv.innerHTML = '<p>Error loading items.</p>';
+         console.error(err);
+       });
+   }
+
+
+   function fulfillItem(itemId) {
+     if (!confirm('Mark this item as fulfilled?')) return;
+    
+     fetch('/api/fulfill_item', {
+       method: 'POST',
+       headers: {'Content-Type': 'application/json'},
+       body: JSON.stringify({item_id: itemId})
+     })
+     .then(r => r.json())
+     .then(data => {
+       if (data.success) {
+         alert('Item marked as fulfilled!');
+         loadOrders('all'); // Reload to show updated status
+       } else {
+         alert('Error: ' + (data.error || 'Unknown error'));
+       }
+     })
+     .catch(err => {
+       alert('Error fulfilling item: ' + err);
+       console.error(err);
+     });
+   }
+
+
+   // Load all orders on page load
+   loadOrders('all');
+ </script>
+</body>
+</html>
+

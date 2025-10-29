@@ -3,10 +3,8 @@ from flask_login import LoginManager
 from .config import Config
 from .db import DB
 
-
 login = LoginManager()
 login.login_view = 'users.login'
-
 
 def create_app():
     app = Flask(__name__)
@@ -20,7 +18,7 @@ def create_app():
 
     from .users import bp as user_bp
     app.register_blueprint(user_bp)
-    
+
     from .wishlist import bp as wishlist_bp
     app.register_blueprint(wishlist_bp)
 
@@ -29,5 +27,9 @@ def create_app():
 
     from .sellers import sellers_bp
     app.register_blueprint(sellers_bp)
+
+    from .cart import cart_bp
+    app.register_blueprint(cart_bp)
+    julia-cart
 
     return app

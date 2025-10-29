@@ -12,7 +12,6 @@
 
 {% block scripts %}
 <script>
-  // Set a default user id (you can remove this and rely on ?user_id= in the URL)
   const defaultUserId = 1;
   const params = new URLSearchParams(location.search);
   const userId = params.get('user_id') || defaultUserId;

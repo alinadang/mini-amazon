@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 
 cart_bp = Blueprint('cart', __name__)
 
@@ -17,3 +17,7 @@ def get_cart():
     items = db.execute(query, user_id=int(user_id))
     columns = ['id', 'name', 'price', 'quantity']
     return jsonify([dict(zip(columns, row)) for row in items])
+
+@cart_bp.route('/cart')
+def cart_page():
+    return render_template('cart.html')

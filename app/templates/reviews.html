@@ -5,7 +5,7 @@
   <h2>Latest Reviews</h2>
   <p class="text-muted">Enter a user ID below to see their 5 most recent reviews.</p>
 
- 
+  <!-- 🔹 User ID form -->
   <form method="get" action="{{ url_for('social.reviews_page') }}" class="form-inline mb-3">
     <label for="user_id" class="mr-2">User ID:</label>
     <input
@@ -32,7 +32,7 @@
     <table class="table table-bordered table-striped mt-3">
       <thead class="thead-dark">
         <tr>
-          <th>Product Name</th>
+          <th>Product ID</th>
           <th>Date</th>
           <th>Review</th>
           <th>Stars</th>
@@ -41,10 +41,17 @@
       <tbody>
         {% for r in items %}
         <tr>
-          <td>{{ r.product_name }}</td>
+          <td>{{ r.product_id }}</td>
           <td>{{ r.date_reviewed }}</td>
           <td>{{ r.comment }}</td>
           <td>
             {% set stars = (r.rating|int) %}
             {{ '★' * stars }}{{ '☆' * (5 - stars) }}
           </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</div>
+{% endblock %}

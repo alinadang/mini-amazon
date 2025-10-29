@@ -11,8 +11,8 @@ bp = Blueprint('index', __name__)
 
 @bp.route('/')
 def index():
-    # don't show any products on home page - users must click "Browse Products"
-    products = []
+    # show 5 sample products on home page
+    products = Product.get_all(True)[:5]
     
     # find the products current user has bought:
     if current_user.is_authenticated:

@@ -30,4 +30,7 @@ def create_app():
     from .sellers import sellers_bp
     app.register_blueprint(sellers_bp)
 
+    from .social import social_bp
+    app.register_blueprint(social_bp)
+
     return app

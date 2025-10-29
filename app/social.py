@@ -1,6 +1,12 @@
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, render_template
 
 bp = Blueprint('social', __name__)
+
+@bp.route('/reviews')
+def reviews_page():
+    """Renders the reviews frontend (reviews.html)."""
+    return render_template('reviews.html')
+
 
 @bp.route('/api/feedback', methods=['GET'])
 def get_feedback():

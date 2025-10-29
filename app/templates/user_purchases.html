@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>User Purchase History</h2>
+    
+    <div class="mb-3">
+        <label for="user_id" class="form-label">Enter your User ID:</label>
+        <div class="input-group">
+            <input type="number" id="user_id" class="form-control" placeholder="Enter user ID">
+            <button class="btn btn-primary" onclick="fetchUserPurchases()">Get Past Purchases</button>
+        </div>
+    </div>
+
+    <div id="purchases-result">
+        <!-- shows purchase results -->
+    </div>
+</div>
+
+<script>
+function fetchUserPurchases() {
+    const userId = document.getElementById('user_id').value;
+    if (!userId) {
+        alert('Please enter your user ID');
+        return;
+    }
+
+    //user blueprint
+    fetch(`/api/user_purchases/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            const resultDiv = document.getElementById('purchases-result');
+            
+            if (data.success) {
+                if (data.purchases.length === 0) {
+                    resultDiv.innerHTML = '<div class="alert alert-info">No purchases found for this user.</div>';
+                    return;
+                }
+
+                let html = `
+                    <h4>User Purchases ${data.user_id}</h4>
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Product Name</th>
+                                    <th>Price</th>
+                                    <th>Purchased Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                data.purchases.forEach(purchase => {
+                    html += `
+                        <tr>
+                            <td>${purchase.product_name}</td>
+                            <td>$${purchase.product_price?.toFixed(2) || 'N/A'}</td>
+                            <td>${new Date(purchase.time_purchased).toLocaleDateString()}</td>
+                            <td>${purchase.product_available ? 'Available' : 'Out of Stock'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                resultDiv.innerHTML = html;
+            } else {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('purchases-result').innerHTML = 
+                '<div class="alert alert-danger">Failed to fetch purchases</div>';
+        });
+}
+</script>
+{% endblock %}

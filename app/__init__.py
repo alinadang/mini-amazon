@@ -30,6 +30,5 @@ def create_app():
 
     from .cart import cart_bp
     app.register_blueprint(cart_bp)
-    julia-cart
 
     return app

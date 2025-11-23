@@ -5,6 +5,7 @@ CREATE TABLE Users (
     password VARCHAR(255) NOT NULL,
     firstname VARCHAR(255) NOT NULL,
     lastname VARCHAR(255) NOT NULL,
+    address TEXT,
     balance DECIMAL(12,2) DEFAULT 0
 );
 

@@ -1,6 +1,6 @@
 from flask import render_template, redirect, url_for, flash, request
 from werkzeug.urls import url_parse
-from flask_login import login_user, logout_user, current_user
+from flask_login import login_user, logout_user, current_user, login_required
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import ValidationError, DataRequired, Email, EqualTo
@@ -68,6 +68,123 @@ def register():
             return redirect(url_for('users.login'))
     return render_template('register.html', title='Register', form=form)
 
+"shows the settings account"
+@bp.route('/settings', methods=['GET'])
+@login_required
+def account_settings():
+    user = User.get(current_user.id)
+    balance = User.get_balance(current_user.id)
+    return render_template('account_settings.html', user=user, balance=balance)
+
+@bp.route('/settings/profile', methods=['POST'])
+@login_required
+def update_profile():
+    #updating the user info: email, first and last name, and address
+    email = request.form.get('email', '').strip()
+    firstname = request.form.get('firstname', '').strip()
+    lastname = request.form.get('lastname', '').strip()
+    address = request.form.get('address', '').strip() or None
+
+    #validation
+    if not email or not firstname or not lastname:
+        flash('Email, First Mame, and Last Name are required.', 'error')
+        return redirect(url_for('users.account_settings'))
+    #check for existing user 
+    if email != current_user.email and User.email_exists(email):
+        flash('This email already has an existing account.', 'error')
+        return redirect(url_for('users.account_settings'))
+    
+    # if User.email_exists(email, exclude_user_id = current_user.id):
+    #     flash('This email already has an existing account.', 'error')
+    #     return redirect(url_for('users.account_settings'))
+
+    #basic profile breakdown for updating
+    good = User.update_profile(
+        user_id = current_user.id,
+        email = email,
+        firstname = firstname,
+        lastname = lastname,
+        address = address
+    )
+
+    if not good:
+        flash('ERROR: Updating profile failed. Please try again', 'error')
+    else:
+        flash('SUCCESS: successfully updated the profile', 'success')
+
+    return redirect(url_for('users.account_settings'))
+
+"password updates"
+@bp.route('/settings/password', methods=['POST'])
+@login_required
+def update_password():
+    current_pw = request.form.get('current_password', '')
+    new_pw = request.form.get('new_password', '')
+    confirm_pw = request.form.get('confirm_password', '')
+
+    #check for current password
+    if not current_user.check_password(current_pw):
+        flash('Incorrect current password', 'error')
+        return redirect(url_for('users.account_settings'))
+    
+    #validating new password: 6 characters, confirmaation of pw --> can't update
+    if not new_pw or len(new_pw) < 6:
+        flash('New password needs to be at least 6 characters', 'error')
+        return redirect(url_for('users.account_settings'))
+
+    #confirming password
+    if new_pw != confirm_pw:
+        flash('Passwords do not match', 'error')
+        return redirect(url_for('users.account_settings'))
+    
+    good = User.update_password(current_user.id, new_pw)
+    if not good:
+        flash('Error: Updating password failed. Please try again!', 'error')
+    else:
+        flash('Success: Updating password successful!', 'success')
+
+    return redirect(url_for('users.account_settings'))
+
+#balance updates
+@bp.route('/settings/balance', methods=['POST'])
+@login_required
+def update_balance():
+    #deposits and withdraws
+    try:
+        amount = float(request.form.get('amount', '0'))
+    except ValueError:
+        flash('Please enter a valid numeric value', 'error')
+        return redirect(url_for('users.account_settings'))
+    action = request.form.get('action')
+
+    if amount <= 0:
+        flash('Please enter a positive amount', 'error')
+        return redirect(url_for('users.account_settings'))
+    
+    current_balance = User.get_balance(current_user.id)
+
+    if action == 'withdraw':
+        if amount > current_balance:
+            flash("Insufficient balance, can not withdraw this amount", "error")
+            return redirect(url_for('users.account_settings'))
+        amount_changed = -amount
+
+    elif action == 'deposit':
+        amount_changed = amount
+    else:
+        flash('Invalid action', 'errpr')
+        return redirect(url_for('users.account_settings'))
+    
+    good = User.update_balance(current_user.id, amount_changed)
+    if not good:
+        flash('Error: Updating balance failed. Please try again!', 'error')
+    else:
+        flash('Success: Balance updated', 'success')
+
+    return redirect(url_for('users.account_settings'))
+
+
+#user purchases
 @bp.route('/user_purchases')
 def user_purchases_page():
     """Serve the user purchases page"""
@@ -132,6 +249,7 @@ def get_user_purchases(user_id):
         'purchases': mock_purchases
     })
 
+#logging out
 @bp.route('/logout')
 def logout():
     logout_user()

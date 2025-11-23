@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Account Settings</h1>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="row">
+
+  <!-- Profile -->
+  <div class="col-md-4">
+    <h3>Profile</h3>
+    <form method="POST" action="{{ url_for('users.update_profile') }}">
+      <div class="mb-3">
+        <label>Email</label>
+        <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+      </div>
+      <div class="mb-3">
+        <label>First name</label>
+        <input type="text" name="firstname" class="form-control" value="{{ user.firstname }}" required>
+      </div>
+      <div class="mb-3">
+        <label>Last name</label>
+        <input type="text" name="lastname" class="form-control" value="{{ user.lastname }}" required>
+      </div>
+      <div class="mb-3">
+        <label>Address</label>
+        <textarea name="address" class="form-control">{{ user.address or '' }}</textarea>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Profile</button>
+    </form>
+  </div>
+
+  <!-- Password -->
+  <div class="col-md-4">
+    <h3>Password</h3>
+    <form method="POST" action="{{ url_for('users.update_password') }}">
+      <div class="mb-3">
+        <label>Current password</label>
+        <input type="password" name="current_password" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label>New password</label>
+        <input type="password" name="new_password" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label>Confirm new password</label>
+        <input type="password" name="confirm_password" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Change Password</button>
+    </form>
+  </div>
+
+  <!-- Balance -->
+  <div class="col-md-4">
+    <h3>Balance</h3>
+    <p>Current balance: ${{ '%.2f'|format(balance) }}</p>
+
+    <form method="POST" action="{{ url_for('users.update_balance') }}">
+      <div class="mb-3">
+        <label>Amount</label>
+        <input type="number" step="0.01" name="amount" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <button type="submit" name="action" value="deposit" class="btn btn-success">Deposit</button>
+        <button type="submit" name="action" value="withdraw" class="btn btn-warning">Withdraw</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+{% endblock %}

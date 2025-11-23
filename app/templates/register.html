@@ -28,6 +28,10 @@
     {% endfor %}
   </p>
   <p>
+    {{ form.address.label }}<br>
+    {{ form.address(size=64) }}
+  </p>
+  <p>
     {{ form.password.label }}<br/>
     {{ form.password(size=32) }}<br/>
     {% for error in form.password.errors %}

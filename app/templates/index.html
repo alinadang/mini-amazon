@@ -11,26 +11,34 @@
   <a href="{{ url_for('sellers.sellers_list') }}" class="btn btn-secondary">Browse Sellers</a>
 </div>
 
-<table class='table table-hover table-bordered container'>
+<table class="table table-hover table-bordered container">
   <thead class="thead-dark">
     <tr>
       <th scope="col">Product ID</th>
       <th scope="col">Product Name</th>
       <th scope="col">Price</th>
+      <th></th>
     </tr>
   </thead>
   <tbody>
-    {% for product in avail_products%}
+    {% for product in avail_products %}
       <tr>
-        <th scope="row">{{product.id}}</th>
-        <td>{{product.name}}</td>
+        <th scope="row">{{ product.id }}</th>
+        <td>{{ product.name }}</td>
+        <td>{{ product.price }}</td>
         <td>
-          {{product.price}}
           {% if current_user.is_authenticated %}
             <form action="{{ url_for('wishlist.wishlist_add', product_id=product.id) }}"
-                  method="POST">
+                  method="POST" style="display:inline;">
               <input type="submit" value="Add to Wishlist"/>
             </form>
+            <button type="button"
+        class="btn btn-sm btn-success"
+        style="margin-left:6px;"
+        onclick="addToCart('{{ product.id }}')">
+  Add to Cart
+</button>
+
           {% endif %}
         </td>
       </tr>
@@ -41,20 +49,22 @@
 <br><br>
 {% if current_user.is_authenticated %}
 <h2>Your recent purchases:</h2>
-<table class='table table-hover table-bordered container'>
+<table class="table table-hover table-bordered container">
   <thead class="thead-dark">
     <tr>
       <th scope="col">Purchase ID</th>
       <th scope="col">Product Name</th>
       <th scope="col">Price</th>
+      <th scope="col">Date</th>
     </tr>
   </thead>
   <tbody>
-    {% for purchase in purchase_history%}
+    {% for purchase in purchase_history %}
       <tr>
-        <th scope="row">{{purchase.id}}</th>
-        <td>{{purchase.pid}}</td>
-        <td>{{purchase.time_purchased}}</td>
+        <th scope="row">{{ purchase.order_id }}</th>
+        <td>{{ purchase.product_name }}</td>
+        <td>{{ purchase.price }}</td>
+        <td>{{ purchase.order_date }}</td>
       </tr>
     {% endfor %}
   </tbody>
@@ -62,5 +72,26 @@
 {% else %}
 <p><a href="{{ url_for('users.login') }}">Log in</a> to see your purchase history!</p>
 {% endif %}
+
+<script>
+function addToCart(productId) {
+  fetch('/api/cart/add', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pid: productId, quantity: 1 })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if(data.success) {
+      alert("Item added to cart!");
+    } else {
+      alert("Failed to add to cart: " + (data.error || "Unknown error"));
+    }
+  })
+  .catch(err => {
+    alert("Failed to add to cart: " + err);
+  });
+}
+</script>
 
 {% endblock %}

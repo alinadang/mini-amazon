@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request, jsonify, redirect, url_for
 from flask_login import LoginManager
 from .config import Config
 from .db import DB
@@ -33,5 +33,15 @@ def create_app():
 
     from .social import social_bp
     app.register_blueprint(social_bp)
+
+    # --- Begin new code ---
+
+    @login.unauthorized_handler
+    def unauthorized_callback():
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': 'Not logged in'}), 401
+        return redirect(url_for('users.login'))
+
+    # --- End new code ---
 
     return app

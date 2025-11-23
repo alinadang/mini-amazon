@@ -1,26 +1,35 @@
-from flask import render_template
+from flask import render_template, current_app
 from flask_login import current_user
-import datetime
+from sqlalchemy import text
 
 from .models.product import Product
-from .models.purchase import Purchase
-
 from flask import Blueprint
-bp = Blueprint('index', __name__)
 
+bp = Blueprint('index', __name__)
 
 @bp.route('/')
 def index():
-    # show 5 sample products on home page
     products = Product.get_all(True)[:5]
-    
-    # find the products current user has bought:
     if current_user.is_authenticated:
-        purchases = Purchase.get_all_by_uid_since(
-            current_user.id, datetime.datetime(1980, 9, 14, 0, 0, 0))
+        try:
+            orders = current_app.db.execute(
+                """
+                SELECT o.id as order_id, p.name as product_name, oi.price, o.order_date
+                FROM Orders o
+                JOIN OrderItems oi ON o.id = oi.order_id
+                JOIN Products p ON oi.product_id = p.id
+                WHERE o.user_id = :uid
+                ORDER BY o.order_date DESC
+                LIMIT 10
+                """,
+                uid = current_user.id
+            )
+            purchase_history = [dict(zip(['order_id', 'product_name', 'price', 'order_date'], row)) for row in orders]
+        except Exception as e:
+            print("Error fetching purchases:", e)
+            purchase_history = []
     else:
-        purchases = None
-    # render the page by adding information to the index.html file
+        purchase_history = None
     return render_template('index.html',
-                           avail_products=products,
-                           purchase_history=purchases)
+                          avail_products=products,
+                          purchase_history=purchase_history)

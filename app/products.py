@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, render_template
 from .models.product import Product
+import math
 
 bp = Blueprint('products_api', __name__, url_prefix='')
 
@@ -32,13 +33,31 @@ def top_products():
 
 @bp.route('/product_browser', methods=['GET'])
 def product_browser():
-    k_raw = request.args.get('k', 50)
-    try:
-        k = int(k_raw)
-        if k <= 0 or k > 2000:
-            k = 50
-    except Exception:
-        k = 50
+    page_raw = request.args.get('page', None)
+    per_page_raw = request.args.get('per_page', None)
+    k_raw = request.args.get('k', None)
+
+    if per_page_raw is not None:
+        try:
+            per_page = int(per_page_raw)
+        except Exception:
+            per_page = 50
+    elif k_raw is not None:
+        try:
+            per_page = int(k_raw)
+        except Exception:
+            per_page = 50
+    else:
+        per_page = 50
+    
+    if page_raw is not None:
+        try:
+            page = int(page_raw)
+        except Exception:
+            page = 1
+    else:
+        page = 1
+
 
     sort_key = request.args.get('sort', 'price')
     sort_dir = request.args.get('dir', '').lower()
@@ -47,29 +66,43 @@ def product_browser():
     if sort_dir not in ('asc', 'desc', ''):
         sort_dir = ''
 
+    q = request.args.get('q', '').strip()
+
     try:
-        products = Product.get_all(True)
+        products, total = Product.get_page(page=page, per_page=per_page,
+                                          sort=sort_key, direction=sort_dir or 'desc',
+                                          q=q if q else None,
+                                          available=True)
+        total_pages = max(1, math.ceil(total / per_page)) if per_page > 0 else 1
 
-        if sort_key == 'price':
-            reverse = (sort_dir != 'asc')
-            products.sort(key=lambda p: (p.price or 0), reverse=reverse)
-        else:
-            reverse = (sort_dir == 'desc')
-            products.sort(key=lambda p: (p.name or '').lower(), reverse=reverse)
-
-        products = products[:k]
+        # not used yet
+        categories = []
 
         return render_template('product_browser.html',
                                products=products,
-                               k=k,
+                               page=page,
+                               per_page=per_page,
+                               total=total,
+                               total_pages=total_pages,
                                sort=sort_key,
                                dir=sort_dir,
+                               k=per_page,
+                               q=q,
+                               category='',
+                               categories=categories,
                                error=None)
     except Exception as e:
         current_app.logger.exception("Error in product_browser")
         return render_template('product_browser.html',
                                products=[],
-                               k=k,
+                               page=page,
+                               per_page=per_page,
+                               total=0,
+                               total_pages=0,
                                sort=sort_key,
                                dir=sort_dir,
+                               k=per_page,
+                               q=q,
+                               category='',
+                               categories=[],
                                error=str(e))

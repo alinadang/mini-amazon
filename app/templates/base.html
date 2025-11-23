@@ -54,6 +54,9 @@
           Hello {{current_user.firstname}}!
           <a href="{{ url_for('cart.cart_page') }}" class="btn btn-info" style="margin-left:8px;">Cart</a>
           <a href="{{ url_for('users.logout') }}" type="button" class="btn btn-light" style="margin-left:8px;">Log out</a>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('users.account_settings') }}">Account Settings</a>
+          </li>
         {% else %}
           <a href="{{ url_for('users.login') }}" type="button" class="btn btn-light">Log in</a>
         {% endif %}

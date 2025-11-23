@@ -3,6 +3,12 @@
 <div class="container mt-4">
   <h2>Product Browser</h2>
 
+  <div style="margin-bottom:12px;">
+    <a class="btn btn-link btn-sm" href="{{ url_for('index.index') }}" style="margin-left:8px;">
+      Home
+    </a>
+  </div>
+
   <form method="get" class="form-inline" style="margin-bottom:12px;">
     <input type="hidden" name="page" value="1"/>
     <label style="margin-right:8px">
@@ -22,9 +28,18 @@
     <label style="margin-left:12px; margin-right:8px">
       Direction
       <select name="dir" class="form-control form-control-sm" style="display:inline-block; width:120px; margin-left:6px">
-        <option value="">(default)</option>
         <option value="asc" {% if dir=='asc' %}selected{% endif %}>Ascending</option>
         <option value="desc" {% if dir=='desc' %}selected{% endif %}>Descending</option>
+      </select>
+    </label>
+
+    <label style="margin-left:12px; margin-right:8px">
+      Category
+      <select name="category" class="form-control form-control-sm" style="display:inline-block; width:160px; margin-left:6px">
+        <option value="" {% if not category %}selected{% endif %}>(all)</option>
+        {% for c in categories %}
+          <option value="{{ c }}" {% if category==c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
       </select>
     </label>
 
@@ -45,6 +60,7 @@
     <table class="table table-bordered table-striped">
       <thead class="thead-dark">
         <tr>
+          <th style="width:120px;"></th>
           <th>Product</th>
           <th>Summary</th>
           <th>Price</th>
@@ -54,8 +70,23 @@
       <tbody>
         {% for p in products %}
           <tr>
-            <td><a href="/product/{{ p.id }}">{{ p.name }}</a></td>
-            <td>No description available.</td>
+            <td style="width:120px;">
+              {% if p.image_url %}
+                <img src="{{ p.image_url }}" alt="{{ p.name }}" style="max-width:100px; max-height:80px"/>
+              {% else %}
+                <div style="width:100px; height:80px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#888;">No image</div>
+              {% endif %}
+            </td>
+            <td><a href="{{ url_for('products_api.product_detail', pid=p.id) }}">{{ p.name }}</a>
+                {% if p.category %}<div style="font-size:0.9em; color:#666">Category: {{ p.category }}</div>{% endif %}
+            </td>
+            <td>
+              {% if p.description %}
+                {{ p.description[:180] }}{% if p.description|length > 180 %}...{% endif %}
+              {% else %}
+                No description available.
+              {% endif %}
+            </td>
             <td>${{ '%.2f'|format(p.price or 0) }}</td>
             <td>{% if p.available %}Yes{% else %}No{% endif %}</td>
           </tr>

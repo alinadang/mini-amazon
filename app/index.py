@@ -1,15 +1,27 @@
 from flask import render_template, current_app
 from flask_login import current_user
-from sqlalchemy import text
-
-from .models.product import Product
 from flask import Blueprint
 
 bp = Blueprint('index', __name__)
 
 @bp.route('/')
 def index():
-    products = Product.get_all(True)[:5]
+    db = current_app.db
+    # Get each product's name and display price (lowest seller price if available, else product price)
+    products = db.execute("""
+        SELECT 
+            p.id, 
+            p.name,
+            COALESCE(
+                (SELECT MIN(i.seller_price) FROM Inventory i WHERE i.product_id = p.id AND i.quantity > 0),
+                p.price
+            ) AS display_price
+        FROM Products p
+        WHERE p.available = 'true'
+        LIMIT 5
+    """)
+    avail_products = [dict(zip(['id', 'name', 'display_price'], row)) for row in products]
+
     if current_user.is_authenticated:
         try:
             orders = current_app.db.execute(
@@ -31,5 +43,5 @@ def index():
     else:
         purchase_history = None
     return render_template('index.html',
-                          avail_products=products,
+                          avail_products=avail_products,
                           purchase_history=purchase_history)

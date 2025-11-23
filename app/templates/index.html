@@ -25,7 +25,7 @@
       <tr>
         <th scope="row">{{ product.id }}</th>
         <td>{{ product.name }}</td>
-        <td>{{ product.price }}</td>
+        <td>{{ product.display_price }}</td>
         <td>
           {% if current_user.is_authenticated %}
             <form action="{{ url_for('wishlist.wishlist_add', product_id=product.id) }}"
@@ -33,12 +33,11 @@
               <input type="submit" value="Add to Wishlist"/>
             </form>
             <button type="button"
-        class="btn btn-sm btn-success"
-        style="margin-left:6px;"
-        onclick="addToCart('{{ product.id }}')">
-  Add to Cart
-</button>
-
+                    class="btn btn-sm btn-success"
+                    style="margin-left:6px;"
+                    onclick="addToCart('{{ product.id }}')">
+              Add to Cart
+            </button>
           {% endif %}
         </td>
       </tr>

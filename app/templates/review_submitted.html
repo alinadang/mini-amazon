@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h2>Thanks for your review!</h2>
+
+  <p><strong>Product:</strong> {{ product_name }} (ID: {{ product_id }})</p>
+
+  <p><strong>Your rating:</strong>
+    {% set stars = rating|int %}
+    {{ '★' * stars }}{{ '☆' * (5 - stars) }}
+  </p>
+
+  {% if comment %}
+    <p><strong>Your comment:</strong> {{ comment }}</p>
+  {% endif %}
+
+  <p><strong>Date submitted:</strong> {{ date_reviewed }}</p>
+
+  <a href="{{ url_for('social.reviews_page') }}" class="btn btn-secondary mt-3">
+    Back to Reviews Page
+  </a>
+</div>
+{% endblock %}

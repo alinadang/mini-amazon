@@ -198,10 +198,18 @@ def update_balance():
 
 
 #user purchases
+# @bp.route('/user_purchases')
+# @login_required
+# def user_purchases_page():
+#     """Serve the user purchases page"""
+#     purchases = Purchase.history_for_user(current_user.id)
+#     return render_template('user_purchases.html')
 @bp.route('/user_purchases')
+@login_required
 def user_purchases_page():
-    """Serve the user purchases page"""
-    return render_template('user_purchases.html')
+    """Show the logged-in user's purchase history."""
+    purchases = Purchase.history_for_user(current_user.id)
+    return render_template('user_purchases.html', purchases=purchases)
 
 @bp.route('/api/user_purchases/<int:user_id>')
 def get_user_purchases(user_id):

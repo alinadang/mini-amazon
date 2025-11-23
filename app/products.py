@@ -37,6 +37,7 @@ def product_browser():
     per_page_raw = request.args.get('per_page', None)
     k_raw = request.args.get('k', None)
 
+    # determine per_page (support k alias)
     if per_page_raw is not None:
         try:
             per_page = int(per_page_raw)
@@ -49,34 +50,36 @@ def product_browser():
             per_page = 50
     else:
         per_page = 50
-    
-    if page_raw is not None:
-        try:
-            page = int(page_raw)
-        except Exception:
-            page = 1
-    else:
+
+    # page number
+    try:
+        page = int(page_raw) if page_raw is not None else 1
+    except Exception:
         page = 1
 
-
+    # sorting
     sort_key = request.args.get('sort', 'price')
     sort_dir = request.args.get('dir', '').lower()
-    if sort_key not in ('price', 'name'):
+    if sort_key not in ('price', 'name', 'id'):
         sort_key = 'price'
     if sort_dir not in ('asc', 'desc', ''):
         sort_dir = ''
 
     q = request.args.get('q', '').strip()
+    category = request.args.get('category', '').strip()
+
+    current_app.logger.debug(f"product_browser: page={page} per_page={per_page} sort={sort_key} dir={sort_dir} q='{q}' category='{category}'")
 
     try:
+        categories = Product.get_categories()
+        category_filter = category if category else None
+
         products, total = Product.get_page(page=page, per_page=per_page,
                                           sort=sort_key, direction=sort_dir or 'desc',
                                           q=q if q else None,
+                                          category=category_filter,
                                           available=True)
         total_pages = max(1, math.ceil(total / per_page)) if per_page > 0 else 1
-
-        # not used yet
-        categories = []
 
         return render_template('product_browser.html',
                                products=products,
@@ -88,7 +91,7 @@ def product_browser():
                                dir=sort_dir,
                                k=per_page,
                                q=q,
-                               category='',
+                               category=category,
                                categories=categories,
                                error=None)
     except Exception as e:
@@ -103,6 +106,14 @@ def product_browser():
                                dir=sort_dir,
                                k=per_page,
                                q=q,
-                               category='',
-                               categories=[],
+                               category=category,
+                               categories=Product.get_categories(),
                                error=str(e))
+
+    
+@bp.route('/product/<int:pid>')
+def product_detail(pid):
+    product = Product.get(pid)
+    if not product:
+        abort(404)
+    return render_template('product_detail.html', product=product)

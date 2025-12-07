@@ -1,4 +1,4 @@
-\COPY Users(id, email, password, firstname, lastname, balance) FROM 'Users.csv' DELIMITER ',' CSV;
+\COPY Users(id, email, password, firstname, lastname, address, balance) FROM 'Users.csv' DELIMITER ',' CSV;
 \COPY Categories(id, name) FROM 'Categories.csv' DELIMITER ',' CSV;
 \COPY Products(id, name, description, image_url, price, available, category_id) FROM 'Products.csv' DELIMITER ',' CSV;
 \COPY Inventory(seller_id, product_id, quantity, seller_price) FROM 'Inventory.csv' DELIMITER ',' CSV;

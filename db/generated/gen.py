@@ -30,8 +30,9 @@ def gen_users(num_users):
             name_components = profile['name'].split(' ')
             firstname = name_components[0]
             lastname = name_components[-1] if len(name_components) > 1 else ''
+            address = fake.address().replace("\n", ", ")
             balance = round(random.uniform(0, 1000), 2)
-            writer.writerow([uid, email, password, firstname, lastname, balance])
+            writer.writerow([uid, email, password, firstname, lastname, address, balance])
 
 def gen_categories(num_categories):
     with open('Categories.csv', 'w', newline='') as f:
@@ -46,7 +47,7 @@ def gen_products(num_products, num_categories):
         for pid in range(num_products):
             name = fake.sentence(nb_words=4).replace('.', '')
             description = fake.text(max_nb_chars=100)
-            image_url = fake.image_url()
+            image_url = f'https://picsum.photos/seed/{pid}/800/600'
             price = round(random.uniform(5, 500), 2)
             available = random.choice(['true', 'false'])
             category_id = random.randint(0, num_categories - 1)

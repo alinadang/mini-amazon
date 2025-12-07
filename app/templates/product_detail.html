@@ -4,12 +4,12 @@
   <h2>{{ product.name }}</h2>
   <div style="display:flex; gap:18px; align-items:flex-start;">
     <div>
-      <img src="https://picsum.photos/seed/{{ product.id }}/800/600"
+      <img src="{{ product.image_url or ('https://picsum.photos/seed/' ~ product.id ~ '/800/600') }}"
         alt="{{ product.name }}"
         style="max-width:300px; max-height:300px; border:1px solid #ddd; padding:6px"
         onerror="this.onerror=null;this.src='https://via.placeholder.com/300x300?text=No+Image';" />
     </div>
-    <div>
+    <div style="flex:1">
       <p><strong>Price:</strong> ${{ '%.2f'|format(product.price or 0) }}</p>
       <p><strong>Available:</strong> {% if product.available %}Yes{% else %}No{% endif %}</p>
       {% if product.category %}
@@ -22,11 +22,65 @@
   </div>
 
   <hr/>
-  <h4>Sellers</h4>
-  <p><em>Seller inventory and add-to-cart controls appear here (Sellers/Carts Gurus).</em></p>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4>Sellers</h4>
+    <div>
+      {% if current_user.is_authenticated and product.creator_id == current_user.id %}
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('products_api.product_edit', pid=product.id) }}">Edit</a>
+      {% endif %}
 
+      {% if current_user.is_authenticated %}
+        <form action="{{ url_for('products_api.product_sell', pid=product.id) }}" method="post" style="display:inline-block; margin-left:8px;">
+          <input type="hidden" name="product_id" value="{{ product.id }}"/>
+          <input type="number" name="quantity" value="1" min="1" style="width:80px; display:inline-block;"/>
+          <input type="number" step="0.01" name="seller_price" placeholder="price" required style="width:110px; display:inline-block;"/>
+          <button class="btn btn-sm btn-success" type="submit">List as Seller</button>
+        </form>
+      {% else %}
+        <a class="btn btn-link btn-sm" href="{{ url_for('auth.login') }}">Log in to sell</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if sellers %}
+  <table class="table table-sm">
+    <thead><tr><th>Seller</th><th>Qty</th><th>Price</th><th></th></tr></thead>
+    <tbody>
+      {% for s in sellers %}
+      <tr>
+        <td>{{ s.firstname }} {{ s.lastname }}</td>
+        <td>{{ s.quantity }}</td>
+        <td>${{ '%.2f'|format(s.seller_price) }}</td>
+        <td>
+          <form action="{{ url_for('cart.add_to_cart') }}" method="post" style="display:flex; gap:8px; align-items:center;">
+            <input type="hidden" name="pid" value="{{ product.id }}">
+            <input type="hidden" name="seller_id" value="{{ s.seller_id }}">
+            <input type="number" name="qty" value="1" min="1" max="{{ s.quantity }}" style="width:80px"/>
+            <button class="btn btn-sm btn-primary" type="submit">Add to Cart</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No sellers currently for this product.</p>
+  {% endif %}
+
+  <hr/>
   <h4>Reviews</h4>
-  <p><em>Product reviews appear here (Social Guru).</em></p>
+  {% if reviews %}
+    {% for r in reviews %}
+      <div style="margin-bottom:12px">
+        <strong>{{ r.firstname or 'Anonymous' }} {{ r.lastname or '' }}</strong>
+        <span style="margin-left:8px">⭐ {{ r.rating }}</span>
+        <div style="font-size:0.95em; color:#333">{{ r.comment }}</div>
+        <div style="font-size:0.8em; color:#777;">{{ r.date_reviewed }}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>No reviews yet.</p>
+  {% endif %}
 
   <p style="margin-top:20px;"><a href="{{ url_for('products_api.product_browser') }}">← Back to Browser</a></p>
 </div>

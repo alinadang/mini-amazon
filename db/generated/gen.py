@@ -40,7 +40,7 @@ def gen_categories(num_categories):
         for i in range(num_categories):
             writer.writerow([i, fake.word().capitalize()])
 
-def gen_products(num_products, num_categories):
+def gen_products(num_products, num_categories, num_users):
     available_pids = []
     with open('Products.csv', 'w', newline='') as f:
         writer = get_csv_writer(f)
@@ -51,9 +51,10 @@ def gen_products(num_products, num_categories):
             price = round(random.uniform(5, 500), 2)
             available = random.choice(['true', 'false'])
             category_id = random.randint(0, num_categories - 1)
+            creator_id = random.randint(0, num_users - 1)
             if available == 'true':
                 available_pids.append(pid)
-            writer.writerow([pid, name, description, image_url, price, available, category_id])
+            writer.writerow([pid, name, description, image_url, price, available, category_id, creator_id])
     return available_pids
 
 def gen_inventory(num_inventory, num_users, num_products):
@@ -151,9 +152,9 @@ def gen_reviews(num_reviews, num_products, num_users):
 # --- GENERATE ALL TABLES ---
 gen_users(num_users)
 gen_categories(num_categories)
-available_pids = gen_products(num_products, num_categories)
+available_pids = gen_products(num_products, num_categories, num_users)
 gen_inventory(num_inventory, num_users, num_products)
-ensure_all_products_in_inventory(num_products)  # <-- this fixes inventory!
+ensure_all_products_in_inventory(num_products)
 gen_cartitems(num_cart_items, num_users, num_products)
 gen_orders(num_orders, num_users)
 gen_orderitems(num_orderitems, num_orders, num_products, num_users)

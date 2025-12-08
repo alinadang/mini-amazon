@@ -19,6 +19,7 @@
                     <th>Number of Items</th>
                     <th>Fulfillment Status</th>
                     <th>Details</th>
+                    <th>Re-order</th>
                 </tr>
             </thead>
             <tbody>
@@ -43,7 +44,7 @@
                     </td>
                     <td>
                         {# Adjust route/param names if your product detail route is different #}
-                        <a href="{{ url_for('products.product_page', id=p.product_id) }}"
+                            <a href="{{ url_for('products_api.product_detail', pid=p.product_id) }}"
                            class="btn btn-sm btn-info">
                             View Details
                         </a>

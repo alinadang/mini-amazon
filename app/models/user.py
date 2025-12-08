@@ -93,14 +93,14 @@ WHERE id = :id
                               id=id)
         return User(*(rows[0])) if rows else None
     
-    @staticmethod
-    def get(id):
-        rows = app.db.execute("""
-SELECT id, email, password, firstname, lastname, balance
-FROM Users
-WHERE id = :id
-""", id=id)
-        return User(*rows[0]) if rows else None
+#     @staticmethod
+#     def get(id):
+#         rows = app.db.execute("""
+# SELECT id, email, password, firstname, lastname, balance
+# FROM Users
+# WHERE id = :id
+# """, id=id)
+#         return User(*rows[0]) if rows else None
 
 
     @staticmethod

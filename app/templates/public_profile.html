@@ -1,0 +1,69 @@
+<!-- templates/public_profile.html -->
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Public Profile</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4 font-weight-bold">Account ID:</div>
+                        <div class="col-md-8">{{ user.id }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4 font-weight-bold">Name:</div>
+                        <div class="col-md-8">{{ user.firstname }} {{ user.lastname }}</div>
+                    </div>
+                    
+                    {% if is_seller %}
+                    <div class="row mb-3">
+                        <div class="col-md-4 font-weight-bold">Email:</div>
+                        <div class="col-md-8">{{ user.email }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4 font-weight-bold">Address:</div>
+                        <div class="col-md-8">{{ user.address if user.address else 'Not provided' }}</div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h4>Seller Reviews</h4>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Reviews feature is coming soon. Working with Social Guru to implement reviews database.
+                    </div>
+                    <!-- Reviews will go here once implemented -->
+                    
+                    {% else %}
+                    <div class="alert alert-secondary">
+                        <i class="fas fa-user"></i>
+                        This user is not registered as a seller.
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Optional: Show some public stats if available -->
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <small class="text-muted">Member since: Soon!</small>
+                        </div>
+                        {% if current_user.is_authenticated and current_user.id != user.id %}
+                        <div class="col-md-6 text-right">
+                            <a href="{{ url_for('users.account_settings') }}" class="btn btn-outline-primary btn-sm">
+                                View My Profile
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

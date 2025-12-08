@@ -124,7 +124,7 @@ def gen_orderitems(num_orderitems, num_orders, num_products, num_users):
             quantity = random.randint(1, 5)
             price = round(random.uniform(5, 500), 2)
             fulfillment_status = random.choice(['pending', 'fulfilled'])
-            fulfilled_date = fake.date_time() if fulfillment_status == 'fulfilled' else ''
+            fulfilled_date = fake.date_time() if fulfillment_status == 'fulfilled' else None
             writer.writerow([iid, order_id, product_id, seller_id, quantity, price, fulfillment_status, fulfilled_date])
 
 def gen_wishes(num_wishes, num_users, num_products):

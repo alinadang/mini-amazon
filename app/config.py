@@ -1,6 +1,8 @@
 import os
 from urllib.parse import quote_plus
+from dotenv import load_dotenv
 
+load_dotenv('.flaskenv')
 
 class Config(object):
     SECRET_KEY = os.environ.get('SECRET_KEY')
@@ -10,4 +12,5 @@ class Config(object):
                 os.environ.get('DB_HOST'),
                 os.environ.get('DB_PORT'),
                 os.environ.get('DB_NAME'))
+    print(SQLALCHEMY_DATABASE_URI) 
     SQLALCHEMY_TRACK_MODIFICATIONS = False

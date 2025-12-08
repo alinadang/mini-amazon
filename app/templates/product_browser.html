@@ -7,7 +7,7 @@
     {% if current_user.is_authenticated %}
       <a class="btn btn-success btn-sm" href="{{ url_for('products_api.product_new') }}">+ Create Product</a>
     {% else %}
-      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.login') }}">Log in to create product</a>
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('users.login') }}">Log in to create product</a>
     {% endif %}
     <a class="btn btn-link btn-sm" href="{{ url_for('index.index') }}" style="margin-left:8px;">Home</a>
   </div>

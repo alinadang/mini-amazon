@@ -30,48 +30,101 @@ def get_cart():
     return jsonify([dict(zip(columns, row)) for row in items])
 
 @cart_bp.route('/api/cart/add', methods=['POST'])
-@login_required
 def add_to_cart():
     """
-    JSON API: { pid: int, quantity: int (opt), seller_id: int (opt) }
+    Accept either JSON (AJAX) or form-encoded submissions.
+    - JSON example: {"pid": 123, "quantity": 2, "seller_id": 5}
+    - Form example from product_detail: pid, qty (or quantity), seller_id
+
+    Behavior:
+      - If user not logged in:
+          * AJAX/JSON => return 401 + {"error":"login_required","login_url": ...}
+          * form => redirect to login page (with next)
+      - On success:
+          * AJAX/JSON => return {"success": True, "remaining": <inventory_qty>}
+          * form => redirect back (existing flow)
     """
-    data = request.get_json() or {}
-    try:
-        pid = int(data.get("pid"))
-    except Exception:
-        return jsonify({"error": "Product ID required and must be integer"}), 400
+    db = current_app.db
+
+    # Not logged in -> return machine-friendly or redirect for forms
+    if not current_user.is_authenticated:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # return URL for login so frontend can redirect or show a login popup
+            return jsonify({
+                "error": "login_required",
+                "login_url": url_for('users.login', _external=False)
+            }), 401
+        return redirect(url_for('users.login', next=request.url))
+
+    data = request.get_json(silent=True) or request.form or request.values or {}
+
+    pid_val = data.get('pid') or data.get('product_id')
+    if pid_val is None or str(pid_val).strip() == '':
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"error": "Product ID required"}), 400
+        return redirect(request.referrer or url_for('products_api.product_browser'))
 
     try:
-        quantity = max(1, int(data.get("quantity", 1)))
+        pid = int(pid_val)
+    except Exception:
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"error": "Invalid product id"}), 400
+        return redirect(request.referrer or url_for('products_api.product_browser'))
+
+    qty_raw = data.get('quantity') or data.get('qty') or 1
+    try:
+        quantity = max(1, int(qty_raw))
     except Exception:
         quantity = 1
 
-    seller_id = data.get("seller_id")
-    if seller_id is not None and seller_id != '':
+    # seller_id (optional)
+    seller_id_val = data.get('seller_id')
+    seller_id = None
+    if seller_id_val not in (None, '', []):
         try:
-            seller_id = int(seller_id)
+            seller_id = int(seller_id_val)
         except Exception:
-            return jsonify({"error": "seller_id must be integer"}), 400
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "seller_id must be integer"}), 400
+            return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
     else:
         seller_id = None
 
     if not seller_id:
         seller_id = get_seller_id_for_product(pid)
         if not seller_id:
-            return jsonify({"error": "No seller with stock for product"}), 404
-    db = current_app.db
-    db.execute("""
-      INSERT INTO CartItems (uid, pid, seller_id, quantity)
-      VALUES (:uid, :pid, :seller_id, :quantity)
-      ON CONFLICT (uid, pid, seller_id) DO UPDATE 
-         SET quantity = CartItems.quantity + :quantity
-    """, uid=current_user.id, pid=pid, seller_id=seller_id, quantity=quantity)
-    return jsonify({"success": True})
+            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return jsonify({"error": "No seller with stock for product"}), 404
+            return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
+
+    try:
+        db.execute("""
+          INSERT INTO CartItems (uid, pid, seller_id, quantity)
+          VALUES (:uid, :pid, :seller_id, :quantity)
+          ON CONFLICT (uid, pid, seller_id) DO UPDATE 
+             SET quantity = CartItems.quantity + :quantity
+        """, uid=current_user.id, pid=pid, seller_id=seller_id, quantity=quantity)
+    except Exception:
+        current_app.logger.exception("Error adding to cart")
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({"error": "Could not add to cart"}), 500
+        return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
+
+    inv_row = db.execute("""
+        SELECT quantity FROM Inventory WHERE seller_id = :seller_id AND product_id = :pid
+    """, seller_id=seller_id, pid=pid)
+    remaining = inv_row[0][0] if inv_row else None
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({"success": True, "remaining": int(remaining) if remaining is not None else None})
+
+    return redirect(request.referrer or url_for('cart.cart_page'))
+
 
 @cart_bp.route('/api/cart/update', methods=['POST'])
 @login_required
 def update_cart():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or request.form or request.values or {}
     pid = data.get("pid")
     seller_id = data.get("seller_id")
     try:
@@ -79,7 +132,7 @@ def update_cart():
     except Exception:
         return jsonify({"error": "Product ID and seller ID required and must be integers"}), 400
     try:
-        quantity = max(1, int(data.get("quantity") or 1))
+        quantity = max(1, int(data.get("quantity") or data.get("qty") or 1))
     except Exception:
         quantity = 1
 
@@ -89,10 +142,11 @@ def update_cart():
     """, uid=current_user.id, pid=pid, seller_id=seller_id, quantity=quantity)
     return jsonify({"success": True})
 
+
 @cart_bp.route('/api/cart/remove', methods=['POST'])
 @login_required
 def remove_from_cart():
-    data = request.get_json() or {}
+    data = request.get_json(silent=True) or request.form or request.values or {}
     pid = data.get("pid"); seller_id = data.get("seller_id")
     try:
         pid = int(pid); seller_id = int(seller_id)
@@ -103,6 +157,7 @@ def remove_from_cart():
       DELETE FROM CartItems WHERE uid=:uid AND pid=:pid AND seller_id=:seller_id
     """, uid=current_user.id, pid=pid, seller_id=seller_id)
     return jsonify({"success": True})
+
 
 # Form-friendly add endpoint (for product_detail HTML form)
 @cart_bp.route('/add', methods=['POST'])
@@ -151,6 +206,7 @@ def add_to_cart_form():
         return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
 
     return redirect(request.referrer or url_for('cart.cart_page'))
+
 
 # Transactional checkout
 @cart_bp.route('/api/cart/checkout', methods=['POST'])

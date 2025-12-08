@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Seller Analytics</title>
+  <style>
+    body { font-family: system-ui; padding: 16px; max-width: 1400px; margin: 0 auto; background: #f5f5f5; }
+    .nav-links { margin-bottom: 20px; }
+    .nav-links a { margin-right: 15px; text-decoration: none; color: #0066cc; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .stat-card h3 { margin: 0 0 8px 0; font-size: 0.9rem; color: #666; text-transform: uppercase; }
+    .stat-card .value { font-size: 2rem; font-weight: bold; color: #333; }
+    .chart-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .chart-container h2 { margin-top: 0; }
+    canvas { max-height: 400px; }
+    .product-list { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .product-item { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid #eee; }
+    .product-item:hover { background: #f9f9f9; }
+    .product-name { font-weight: 500; }
+    .product-stats { color: #666; font-size: 0.9rem; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="nav-links">
+    <a href="{{ url_for('index.index') }}">← Home</a> |
+    <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">My Seller Profile</a> |
+    <a href="{{ url_for('sellers.seller_orders_page') }}">Orders to Fulfill</a> |
+    <strong>Analytics</strong>
+  </div>
+
+  <h1>Seller Analytics Dashboard</h1>
+
+  <!-- Key Stats Cards -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat-card">
+      <h3>Total Products</h3>
+      <div class="value" id="stat-products">-</div>
+    </div>
+    <div class="stat-card">
+      <h3>Total Inventory</h3>
+      <div class="value" id="stat-inventory">-</div>
+    </div>
+    <div class="stat-card">
+      <h3>Out of Stock</h3>
+      <div class="value" id="stat-outofstock">-</div>
+    </div>
+    <div class="stat-card">
+      <h3>Pending Orders</h3>
+      <div class="value" id="stat-pending">-</div>
+    </div>
+  </div>
+
+  <!-- Sales Timeline Chart -->
+  <div class="chart-container">
+    <h2>Sales Trend (Last 30 Days)</h2>
+    <canvas id="salesChart"></canvas>
+  </div>
+
+  <!-- Fulfillment Status Chart -->
+  <div class="chart-container">
+    <h2>Fulfillment Status</h2>
+    <canvas id="fulfillmentChart"></canvas>
+  </div>
+
+  <!-- Top Products List -->
+  <div class="product-list">
+    <h2>Top Selling Products</h2>
+    <div id="top-products"></div>
+  </div>
+
+  <script>
+    let salesChart, fulfillmentChart;
+
+    function loadAnalytics() {
+      fetch('/api/seller_analytics')
+        .then(r => r.json())
+        .then(data => {
+          // Update stat cards
+          document.getElementById('stat-products').textContent = data.inventory_stats.total_products;
+          document.getElementById('stat-inventory').textContent = data.inventory_stats.total_inventory;
+          document.getElementById('stat-outofstock').textContent = data.inventory_stats.out_of_stock;
+          
+          const pendingStat = data.fulfillment_stats.find(s => s.status === 'pending');
+          document.getElementById('stat-pending').textContent = pendingStat ? pendingStat.count : 0;
+
+          // Sales Timeline Chart
+          renderSalesChart(data.sales_timeline);
+
+          // Fulfillment Chart
+          renderFulfillmentChart(data.fulfillment_stats);
+
+          // Top Products List
+          renderTopProducts(data.top_products);
+        })
+        .catch(err => console.error('Error loading analytics:', err));
+    }
+
+    function renderSalesChart(timeline) {
+      const ctx = document.getElementById('salesChart');
+      
+      if (salesChart) salesChart.destroy();
+
+      salesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: timeline.map(d => d.date),
+          datasets: [
+            {
+              label: 'Orders',
+              data: timeline.map(d => d.order_count),
+              borderColor: 'rgb(75, 192, 192)',
+              backgroundColor: 'rgba(75, 192, 192, 0.1)',
+              tension: 0.3
+            },
+            {
+              label: 'Items Sold',
+              data: timeline.map(d => d.items_sold),
+              borderColor: 'rgb(54, 162, 235)',
+              backgroundColor: 'rgba(54, 162, 235, 0.1)',
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { position: 'top' }
+          },
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderFulfillmentChart(stats) {
+      const ctx = document.getElementById('fulfillmentChart');
+      
+      if (fulfillmentChart) fulfillmentChart.destroy();
+
+      fulfillmentChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: stats.map(s => s.status.charAt(0).toUpperCase() + s.status.slice(1)),
+          datasets: [{
+            data: stats.map(s => s.count),
+            backgroundColor: [
+              'rgba(255, 206, 86, 0.8)',
+              'rgba(75, 192, 192, 0.8)',
+              'rgba(255, 99, 132, 0.8)'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { position: 'right' }
+          }
+        }
+      });
+    }
+
+    function renderTopProducts(products) {
+      const container = document.getElementById('top-products');
+      
+      if (products.length === 0) {
+        container.innerHTML = '<p>No sales data yet.</p>';
+        return;
+      }
+
+      container.innerHTML = products.map((p, index) => `
+        <div class="product-item">
+          <div>
+            <span style="color: #999; margin-right: 8px;">#${index + 1}</span>
+            <span class="product-name">${p.name}</span>
+          </div>
+          <div class="product-stats">
+            ${p.total_sold} sold • ${p.order_count} orders • $${p.revenue.toFixed(2)} revenue
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Load on page load
+    loadAnalytics();
+  </script>
+</body>
+</html>

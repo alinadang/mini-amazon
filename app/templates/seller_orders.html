@@ -17,7 +17,8 @@
 </head>
 <body>
  <a href="{{ url_for('index.index') }}">← Home</a> |
- <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">My Seller Profile</a>
+ <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">My Seller Profile</a> | 
+ <a href="{{ url_for('sellers.seller_analytics_page') }}">Analytics</a>
   <h1>Orders to Fulfill</h1>
   <div class="filter-buttons">
    <strong>Filter:</strong>

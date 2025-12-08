@@ -62,7 +62,7 @@ CREATE TABLE Orders (
     user_id INT NOT NULL REFERENCES Users(id),
     total_amount DECIMAL(12,2) NOT NULL,
     order_date TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-    status VARCHAR(50) DEFAULT 'pending'
+    status VARCHAR(50) DEFAULT 'active'
 );
 
 -- ORDER ITEMS

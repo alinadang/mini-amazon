@@ -113,7 +113,7 @@ def gen_orders(num_orders, num_users):
             user_id = random.randint(0, num_users - 1)
             total_amount = round(random.uniform(10, 1000), 2)
             order_date = fake.date_time()
-            status = random.choice(['pending', 'fulfilled', 'cancelled'])
+            status = 'cancelled' if random.random() < 0.1 else 'active'
             writer.writerow([oid, user_id, total_amount, order_date, status])
 
 def gen_orderitems(num_orderitems, num_orders, num_products, num_users):

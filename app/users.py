@@ -207,17 +207,96 @@ def update_balance():
 @bp.route('/user_purchases')
 @login_required
 def user_purchases_page():
-    """Show the logged-in user's purchase history."""
-    purchases = Purchase.history_for_user(current_user.id)
-    return render_template('user_purchases.html', purchases=purchases)
+    """Show the logged-in user's purchase history with filtering."""
+    # Get filter parameters
+    sort_by = request.args.get('sort_by', 'date')
+    sort_order = request.args.get('sort_order', 'desc')
+    search_term = request.args.get('search', '')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+    status_filter = request.args.get('status', 'all')
+    
+    # Get purchase history
+    purchases = Purchase.history_for_user(
+        current_user.id,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        search_term=search_term,
+        date_from=date_from,
+        date_to=date_to,
+        status_filter=status_filter
+    )
+    
+    # Get summary stats
+    summary = Purchase.get_purchase_summary(current_user.id)
+    
+    return render_template('user_purchases.html', 
+                         purchases=purchases,
+                         summary=summary,
+                         sort_by=sort_by,
+                         sort_order=sort_order,
+                         search_term=search_term,
+                         date_from=date_from,
+                         date_to=date_to,
+                         status_filter=status_filter)
 
+@bp.route('/order/<int:order_id>')
+@login_required
+def order_details(order_id):
+    """Show detailed order page."""
+    order_info = Purchase.get_order_details(order_id, current_user.id)
+    
+    if not order_info:
+        flash('Order not found or you do not have permission to view it.', 'error')
+        return redirect(url_for('users.user_purchases_page'))
+    
+    return render_template('order_details.html', order=order_info)
+
+@bp.route('/user/<int:user_id>')
+def public_profile(user_id):
+    """Public view of a user's profile"""
+    # Get the user
+    user = User.get(user_id)
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('index.index'))
+    
+    # Check if user is a seller
+    is_seller = User.is_seller(user_id)
+    
+    return render_template('public_profile.html', 
+                           user=user, 
+                           is_seller=is_seller)
+
+@bp.route('/users/search')
+def search_users():
+    """Simple user search (optional feature)"""
+    query = request.args.get('q', '')
+    users = []
+    
+    if query:
+        rows = app.db.execute('''
+            SELECT id, firstname, lastname, email
+            FROM Users 
+            WHERE firstname ILIKE :q OR lastname ILIKE :q OR email ILIKE :q
+            LIMIT 20
+        ''', q=f'%{query}%')
+        
+        for row in rows:
+            users.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}",
+                'email': row[3]
+            })
+    
+    return render_template('search_users.html', users=users, query=query)
+
+#user purchases api 
 @bp.route('/api/user_purchases/<int:user_id>')
 def get_user_purchases(user_id):
     """API endpoint to get user purchases with product details"""
-    # TEMPORARY MOCK DATA FOR DEMO
     import datetime
     
-    # Different mock data based on user_id for demo variety
     if user_id == 1:
         mock_purchases = [
             {
@@ -275,3 +354,152 @@ def get_user_purchases(user_id):
 def logout():
     logout_user()
     return redirect(url_for('index.index'))
+
+# Add these debug routes to app/users.py (not the model file!)
+
+@bp.route('/debug/orders')
+@login_required
+def debug_orders():
+    """Debug route to see what orders exist"""
+    user_id = current_user.id
+    
+    # Check orders directly
+    orders = app.db.execute('''
+        SELECT id, order_date, status, total_amount, user_id
+        FROM orders
+        WHERE user_id = :user_id
+        ORDER BY order_date DESC
+    ''', user_id=user_id)
+    
+    # Check order items
+    order_items = []
+    if orders:
+        for order in orders:
+            items = app.db.execute('''
+                SELECT oi.product_id, p.name, oi.price, oi.quantity
+                FROM orderitems oi
+                JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = :order_id
+            ''', order_id=order[0])
+            order_items.append({
+                'order_id': order[0],
+                'items': items
+            })
+    
+    html = f"""
+    <h3>Debug Orders for User {user_id}</h3>
+    <h4>Found {len(orders)} orders:</h4>
+    <table border="1">
+        <tr>
+            <th>Order ID</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th>Total</th>
+        </tr>
+    """
+    
+    for order in orders:
+        html += f"""
+        <tr>
+            <td>{order[0]}</td>
+            <td>{order[1]}</td>
+            <td>{order[2]}</td>
+            <td>${order[3] if order[3] else '0.00'}</td>
+        </tr>
+        """
+    
+    html += "</table>"
+    
+    html += "<h4>Order Items:</h4>"
+    for order_info in order_items:
+        html += f"<h5>Order {order_info['order_id']}:</h5>"
+        if order_info['items']:
+            html += "<ul>"
+            for item in order_info['items']:
+                html += f"<li>Product {item[0]} ({item[1]}): {item[3]} @ ${item[2]}</li>"
+            html += "</ul>"
+        else:
+            html += "<p>No items found</p>"
+    
+    return html
+
+@bp.route('/debug/db')
+def debug_db():
+    """Test database connections"""
+    results = []
+    
+    # Test 1: Check Users table
+    try:
+        users = app.db.execute("SELECT COUNT(*) FROM users")
+        results.append(f"Users table: {users[0][0]} rows")
+    except Exception as e:
+        results.append(f"Users table ERROR: {e}")
+    
+    # Test 2: Check Orders table
+    try:
+        orders = app.db.execute("SELECT COUNT(*) FROM orders")
+        results.append(f"Orders table: {orders[0][0]} rows")
+        
+        # Show some sample orders
+        sample_orders = app.db.execute("SELECT id, user_id, order_date, status FROM orders LIMIT 5")
+        results.append(f"Sample orders: {sample_orders}")
+    except Exception as e:
+        results.append(f"Orders table ERROR: {e}")
+    
+    # Test 3: Check OrderItems table
+    try:
+        orderitems = app.db.execute("SELECT COUNT(*) FROM orderitems")
+        results.append(f"OrderItems table: {orderitems[0][0]} rows")
+    except Exception as e:
+        results.append(f"OrderItems table ERROR: {e}")
+    
+    # Test 4: Check Products table
+    try:
+        products = app.db.execute("SELECT COUNT(*) FROM products")
+        results.append(f"Products table: {products[0][0]} rows")
+    except Exception as e:
+        results.append(f"Products table ERROR: {e}")
+    
+    return "<br>".join(results)
+
+@bp.route('/debug/cart')
+@login_required
+def debug_cart():
+    """Debug cart issues"""
+    user_id = current_user.id
+    
+    # Check user balance
+    balance = User.get_balance(user_id)
+    
+    # Check cart items
+    cart_items = app.db.execute('''
+        SELECT ci.product_id, ci.quantity, p.name, p.price, p.available
+        FROM cartitems ci
+        JOIN products p ON ci.product_id = p.id
+        WHERE ci.user_id = :user_id
+    ''', user_id=user_id)
+    
+    # Check inventory if it exists
+    try:
+        inventory = app.db.execute('''
+            SELECT product_id, quantity 
+            FROM inventory 
+            WHERE seller_id = :user_id
+        ''', user_id=user_id)
+    except:
+        inventory = []
+    
+    return f"""
+    <h3>Debug Info for User {user_id}</h3>
+    <p>Balance: ${balance}</p>
+    
+    <h4>Cart Items ({len(cart_items)})</h4>
+    <ul>
+    {"".join([f'<li>{item[2]}: {item[1]} @ ${item[3]} (available: {item[4]})</li>' for item in cart_items])}
+    </ul>
+    
+    <h4>Inventory ({len(inventory)})</h4>
+    <ul>
+    {"".join([f'<li>Product {item[0]}: {item[1]} in stock</li>' for item in inventory])}
+    </ul>
+    """

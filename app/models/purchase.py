@@ -1,71 +1,4 @@
-# from flask import current_app as app
-
-# class Purchase:
-#     def __init__(self, id, uid, pid, time_purchased):
-#         self.id = id
-#         self.uid = uid
-#         self.pid = pid
-#         self.time_purchased = time_purchased
-
-#     @staticmethod
-#     def get(id):
-#         rows = app.db.execute('''
-# SELECT id, uid, pid, time_purchased
-# FROM Purchases
-# WHERE id = :id
-# ''',
-#                               id=id)
-#         return Purchase(*(rows[0])) if rows else None
-
-#     @staticmethod
-#     def get_all_by_uid_since(uid, since):
-#         rows = app.db.execute('''
-# SELECT id, uid, pid, time_purchased
-# FROM Purchases
-# WHERE uid = :uid
-# AND time_purchased >= :since
-# ORDER BY time_purchased DESC
-# ''',
-#                               uid=uid,
-#                               since=since)
-#         return [Purchase(*row) for row in rows]
-
-
-#     @staticmethod
-#     def history_for_user(uid):
-#         """
-#         Return purchase history for a user, with product info and summary fields.
-#         Each row = one product purchased.
-#         """
-#         rows = app.db.execute('''
-#             SELECT
-#                 p.id              AS purchase_id,
-#                 p.time_purchased  AS time_purchased,
-#                 pr.id             AS product_id,
-#                 pr.name           AS product_name,
-#                 pr.price          AS product_price,
-#                 1                 AS num_items,      -- each purchase is 1 item
-#                 'Fulfilled'       AS status
-#             FROM Purchases p
-#             JOIN Products pr ON p.pid = pr.id
-#             WHERE p.uid = :uid
-#             ORDER BY p.time_purchased DESC
-#         ''', uid=uid)
-
-#         #convert rows into dicts for easier template use
-#         history = []
-#         for r in rows:
-#             history.append({
-#                 "purchase_id": r[0],
-#                 "time_purchased": r[1],
-#                 "product_id": r[2],
-#                 "product_name": r[3],
-#                 "product_price": float(r[4]),
-#                 "num_items": int(r[5]),
-#                 "status": r[6],
-#             })
-#         return history
-
+# app/models/purchase.py
 from flask import current_app as app
 
 class Purchase:
@@ -98,14 +31,15 @@ ORDER BY time_purchased DESC
                               since=since)
         return [Purchase(*row) for row in rows]
 
-
     @staticmethod
-    def history_for_user(uid):
+    def history_for_user(uid, sort_by='date', sort_order='desc', 
+                        search_term=None, date_from=None, date_to=None, status_filter=None):
         """
-        Return purchase history for a user from Orders table, with product info.
-        Each row = one order item (product purchased).
+        Return purchase history for a user with filtering and sorting.
+        Using actual database tables: Orders, OrderItems, Products, Users
         """
-        rows = app.db.execute('''
+        # Base query - adjust column names based on your actual schema
+        query = '''
             SELECT
                 o.id              AS order_id,
                 o.order_date      AS time_purchased,
@@ -113,26 +47,210 @@ ORDER BY time_purchased DESC
                 p.name            AS product_name,
                 oi.price          AS product_price,
                 oi.quantity       AS num_items,
-                'Fulfilled'       AS status,
-                o.total_amount    AS order_total
+                oi.fulfillment_status          AS status,
+                o.total_amount    AS order_total,
+                p.creator_id      AS seller_id,
+                u.firstname       AS seller_firstname,
+                u.lastname        AS seller_lastname,
+                oi.fulfilled_date AS fulfillment_date
             FROM orders o
             JOIN orderitems oi ON o.id = oi.order_id
             JOIN products p ON oi.product_id = p.id
+            LEFT JOIN users u ON p.creator_id = u.id
             WHERE o.user_id = :uid
-            ORDER BY o.order_date DESC, oi.id
-        ''', uid=uid)
-
+        '''
+        
+        params = {'uid': uid}
+        conditions = []
+        
+        # Add filters
+        if status_filter and status_filter != 'all':
+            conditions.append('oi.fulfillment_status = :status')
+            params['status'] = status_filter
+        
+        if search_term:
+            conditions.append('p.name ILIKE :search_term')
+            params['search_term'] = f'%{search_term}%'
+        
+        if date_from:
+            conditions.append('o.order_date >= :date_from')
+            params['date_from'] = date_from
+        
+        if date_to:
+            conditions.append('o.order_date <= :date_to')
+            params['date_to'] = date_to
+        
+        # Apply conditions
+        if conditions:
+            query += ' AND ' + ' AND '.join(conditions)
+        
+        # Add sorting
+        sort_map = {
+            'date': 'o.order_date',
+            'amount': 'o.total_amount',
+            'name': 'p.name',
+            'status': 'oi.fulfillment_status',
+            'quantity': 'oi.quantity'
+        }
+        
+        sort_col = sort_map.get(sort_by, 'o.order_date')
+        order = 'DESC' if sort_order.lower() == 'desc' else 'ASC'
+        
+        query += f' ORDER BY {sort_col} {order}'
+        
+        try:
+            print(f"DEBUG: Executing query: {query}")
+            print(f"DEBUG: With params: {params}")
+            rows = app.db.execute(query, **params)
+            print(f"DEBUG: Got {len(rows)} rows")
+        except Exception as e:
+            print(f"ERROR in purchase history query: {e}")
+            print(f"ERROR: Query was: {query}")
+            # Return empty list to avoid breaking the page
+            return []
+        
         # Convert rows into dicts for easier template use
         history = []
         for r in rows:
+            # Calculate item total
+            try:
+                item_total = float(r[4]) * int(r[5])  # price * quantity
+            except (TypeError, IndexError):
+                item_total = 0.0
+            
             history.append({
                 "order_id": r[0],
                 "time_purchased": r[1],
                 "product_id": r[2],
-                "product_name": r[3],
-                "product_price": float(r[4]),
-                "num_items": int(r[5]),
-                "status": r[6],
-                "order_total": float(r[7]) if r[7] else 0.0,
+                "product_name": r[3] if len(r) > 3 else "Unknown Product",
+                "product_price": float(r[4]) if len(r) > 4 and r[4] else 0.0,
+                "num_items": int(r[5]) if len(r) > 5 and r[5] else 1,
+                "status": r[6] if len(r) > 6 else "pending",
+                "order_total": float(r[7]) if len(r) > 7 and r[7] else item_total,
+                "item_total": item_total,
+                "seller_id": r[8] if len(r) > 8 else None,
+                "seller_name": f"{r[9]} {r[10]}" if len(r) > 10 and r[9] and r[10] else "Unknown Seller",
+                "fulfillment_date": r[11] if len(r) > 11 else None
             })
         return history
+
+    @staticmethod
+    def get_purchase_summary(uid):
+        """Get summary stats for user's purchases"""
+        try:
+            rows = app.db.execute('''
+                SELECT 
+                    COUNT(DISTINCT o.id) as total_orders,
+                    COUNT(oi.id) as total_items,
+                    COALESCE(SUM(o.total_amount), 0) as total_spent,
+                    COUNT(CASE WHEN oi.fulfillment_status = 'fulfilled' THEN 1 END) as fulfilled_orders,
+                    COUNT(CASE WHEN oi.fulfillment_status = 'pending' THEN 1 END) as pending_orders
+                FROM orders o
+                JOIN orderitems oi ON o.id = oi.order_id
+                WHERE o.user_id = :uid
+            ''', uid=uid)
+            
+            if rows and rows[0]:
+                return {
+                    'total_orders': rows[0][0],
+                    'total_items': rows[0][1],
+                    'total_spent': float(rows[0][2]),
+                    'fulfilled_orders': rows[0][3],
+                    'pending_orders': rows[0][4]
+                }
+        except Exception as e:
+            print(f"Error getting purchase summary: {e}")
+        
+        return {
+            'total_orders': 0, 
+            'total_items': 0, 
+            'total_spent': 0, 
+            'fulfilled_orders': 0,
+            'pending_orders': 0
+        }
+
+    @staticmethod
+    def get_order_details(order_id, uid=None):
+        """
+        Get detailed information for a specific order.
+        """
+        try:
+            query = '''
+                SELECT
+                    o.id AS order_id,
+                    o.order_date,
+                    o.total_amount,
+                    oi.fulfillment_status,
+                    o.fulfillment_date,
+                    o.shipping_address,
+                    oi.product_id,
+                    p.name AS product_name,
+                    p.image_url,
+                    oi.price,
+                    oi.quantity,
+                    u.firstname || ' ' || u.lastname AS seller_name
+                FROM orders o
+                JOIN orderitems oi ON o.id = oi.order_id
+                JOIN products p ON oi.product_id = p.id
+                LEFT JOIN users u ON p.creator_id = u.id
+                WHERE o.id = :order_id
+            '''
+            
+            params = {'order_id': order_id}
+            
+            if uid:
+                query += ' AND o.user_id = :uid'
+                params['uid'] = uid
+            
+            rows = app.db.execute(query, **params)
+            
+            if not rows:
+                return None
+            
+            # Group items by order
+            order_info = {
+                'order_id': rows[0][0],
+                'order_date': rows[0][1],
+                'total_amount': float(rows[0][2]) if rows[0][2] else 0,
+                'status': rows[0][3],
+                'fulfillment_date': rows[0][4],
+                'shipping_address': rows[0][5],
+                'items': []
+            }
+            
+            for row in rows:
+                order_info['items'].append({
+                    'product_id': row[6],
+                    'product_name': row[7],
+                    'image_url': row[8],
+                    'price': float(row[9]) if row[9] else 0,
+                    'quantity': row[10] if row[10] else 1,
+                    'seller_name': row[11],
+                    'item_total': float(row[9]) * row[10] if row[9] and row[10] else 0
+                })
+            
+            return order_info
+        except Exception as e:
+            print(f"Error getting order details: {e}")
+            return None
+
+    @staticmethod
+    def get_status_counts(uid):
+        """Get counts of orders by status"""
+        try:
+            rows = app.db.execute('''
+                SELECT 
+                    status,
+                    COUNT(*) as count
+                FROM orders
+                WHERE user_id = :uid
+                GROUP BY status
+            ''', uid=uid)
+            
+            status_counts = {}
+            for row in rows:
+                status_counts[row[0]] = row[1]
+            return status_counts
+        except Exception as e:
+            print(f"Error getting status counts: {e}")
+            return {}

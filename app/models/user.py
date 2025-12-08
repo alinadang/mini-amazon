@@ -92,16 +92,6 @@ WHERE id = :id
 """,
                               id=id)
         return User(*(rows[0])) if rows else None
-    
-#     @staticmethod
-#     def get(id):
-#         rows = app.db.execute("""
-# SELECT id, email, password, firstname, lastname, balance
-# FROM Users
-# WHERE id = :id
-# """, id=id)
-#         return User(*rows[0]) if rows else None
-
 
     @staticmethod
     def update_profile(user_id, email, firstname, lastname, address):
@@ -166,3 +156,46 @@ FROM Users
 WHERE id = :user_id
 ''', user_id=user_id)
         return float(rows[0][0]) if rows else 0.0
+    
+    @staticmethod
+    def is_seller(user_id):
+        """Check if a user is a seller (has inventory) - placeholder for now"""
+        # This will be implemented once the Sellers Guru creates Inventory table
+        # For now, you can check if they have any products they created
+        rows = app.db.execute("""
+            SELECT COUNT(*) 
+            FROM products 
+            WHERE creator_id = :user_id
+        """, user_id=user_id)
+
+        has_products = rows[0][0] > 0 if rows else False
+
+        try:
+            inventory_rows = app.db.execute("""
+                SELECT COUNT(*)
+                FROM inventory
+                WHERE seller_id = :user_id
+            """, user_id = user_id)
+            has_inventory = inventory_rows[0][0] > 0 if inventory_rows else False
+        except:
+            has_inventory = False
+        return has_products or has_inventory
+    
+    @staticmethod
+    def search_users(query, limit=20):
+        """Search users by name or email"""
+        rows = app.db.execute("""
+            SELECT id, firstname, lastname, email
+            FROM Users 
+            WHERE firstname ILIKE :q OR lastname ILIKE :q OR email ILIKE :q
+            LIMIT :limit
+        """, q=f'%{query}%', limit=limit)
+        
+        users = []
+        for row in rows:
+            users.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}",
+                'email': row[3]
+            })
+        return users

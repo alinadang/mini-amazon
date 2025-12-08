@@ -2,7 +2,14 @@
 {% block content %}
 <div class="container mt-4">
   <h2>{{ product.name }}</h2>
-  <div style="display:flex; gap:18px; align-items:flex-start;">
+  <div style="font-size:0.9em; color:#666; margin-top:6px;">
+    <span>Product ID: <strong>{{ product.id }}</strong></span>
+    {% if creator %}
+      &nbsp;·&nbsp;Created by: {{ creator.firstname }} {{ creator.lastname }}
+    {% endif %}
+  </div>
+
+  <div style="display:flex; gap:18px; align-items:flex-start; margin-top:12px;">
     <div>
       <img src="{{ product.image_url or ('https://picsum.photos/seed/' ~ product.id ~ '/800/600') }}"
         alt="{{ product.name }}"
@@ -62,7 +69,6 @@
                   data-max="{{ s.quantity }}">
             Add to Cart
           </button>
-
           <button type="submit" style="display:none" aria-hidden="true"></button>
         </form>
       </td>
@@ -107,8 +113,8 @@
     el.style.borderRadius = '6px';
     el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
     el.style.fontSize = '14px';
-    el.style.color = isError ? '#fff' : '#fff';
-    el.style.background = isError ? '#d9534f' : '#28a745'; // red for error, green for success
+    el.style.color = '#fff';
+    el.style.background = isError ? '#d9534f' : '#28a745'; 
     el.style.opacity = '0';
     el.style.transition = 'opacity 160ms ease, transform 160ms ease';
     container.appendChild(el);
@@ -125,7 +131,7 @@
 
   function promptLogin(loginUrl) {
     if (confirm('You must be logged in to add to cart. Go to login page now?')) {
-      window.location = loginUrl || '/users/login';
+      window.location = loginUrl || '{{ url_for("users.login") }}';
     }
   }
 
@@ -144,7 +150,7 @@
     }
     qty = Math.max(1, parseInt(qty) || 1);
 
-    fetch('/api/cart/add', {
+    fetch('{{ url_for("cart.add_to_cart") }}', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -157,7 +163,7 @@
       if (res.status === 401) {
         let json = {};
         try { json = await res.json(); } catch(_) {}
-        promptLogin(json.login_url || '/users/login');
+        promptLogin(json.login_url || '{{ url_for("users.login") }}');
         return;
       }
       let json = {};

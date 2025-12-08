@@ -63,6 +63,7 @@
     <table class="table table-bordered table-striped">
       <thead class="thead-dark">
         <tr>
+          <th style="width:50px;">ID</th>
           <th style="width:120px;"></th>
           <th>Product</th>
           <th>Summary</th>
@@ -74,15 +75,21 @@
       <tbody>
         {% for p in products %}
           <tr>
+            <td style="width:50px; font-size:0.85em; color:#555;">
+              {{ p.id }}
+            </td>
             <td style="width:120px;">
               <img src="https://picsum.photos/seed/{{ p.id }}/200/150"
-                alt="{{ p.name }}"
-                style="max-width:100px; max-height:80px"
-                loading="lazy"
-                onerror="this.onerror=null;this.src='https://via.placeholder.com/100x80?text=No+Image';" />
+                  alt="{{ p.name }}"
+                  style="max-width:100px; max-height:80px"
+                  loading="lazy"
+                  onerror="this.onerror=null;this.src='https://via.placeholder.com/100x80?text=No+Image';" />
             </td>
-            <td><a href="{{ url_for('products_api.product_detail', pid=p.id) }}">{{ p.name }}</a>
-                {% if p.category %}<div style="font-size:0.9em; color:#666">Category: {{ p.category }}</div>{% endif %}
+            <td>
+              <a href="{{ url_for('products_api.product_detail', pid=p.id) }}">{{ p.name }}</a>
+              {% if p.category %}
+                <div style="font-size:0.9em; color:#666">Category: {{ p.category }}</div>
+              {% endif %}
             </td>
             <td>
               {% if p.description %}

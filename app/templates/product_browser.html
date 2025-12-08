@@ -4,9 +4,12 @@
   <h2>Product Browser</h2>
 
   <div style="margin-bottom:12px;">
-    <a class="btn btn-link btn-sm" href="{{ url_for('index.index') }}" style="margin-left:8px;">
-      Home
-    </a>
+    {% if current_user.is_authenticated %}
+      <a class="btn btn-success btn-sm" href="{{ url_for('products_api.product_new') }}">+ Create Product</a>
+    {% else %}
+      <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.login') }}">Log in to create product</a>
+    {% endif %}
+    <a class="btn btn-link btn-sm" href="{{ url_for('index.index') }}" style="margin-left:8px;">Home</a>
   </div>
 
   <form method="get" class="form-inline" style="margin-bottom:12px;">
@@ -63,6 +66,7 @@
           <th style="width:120px;"></th>
           <th>Product</th>
           <th>Summary</th>
+          <th>Rating</th>
           <th>Price</th>
           <th>Available</th>
         </tr>
@@ -71,11 +75,11 @@
         {% for p in products %}
           <tr>
             <td style="width:120px;">
-              {% if p.image_url %}
-                <img src="{{ p.image_url }}" alt="{{ p.name }}" style="max-width:100px; max-height:80px"/>
-              {% else %}
-                <div style="width:100px; height:80px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#888;">No image</div>
-              {% endif %}
+              <img src="https://picsum.photos/seed/{{ p.id }}/200/150"
+                alt="{{ p.name }}"
+                style="max-width:100px; max-height:80px"
+                loading="lazy"
+                onerror="this.onerror=null;this.src='https://via.placeholder.com/100x80?text=No+Image';" />
             </td>
             <td><a href="{{ url_for('products_api.product_detail', pid=p.id) }}">{{ p.name }}</a>
                 {% if p.category %}<div style="font-size:0.9em; color:#666">Category: {{ p.category }}</div>{% endif %}
@@ -87,6 +91,15 @@
                 No description available.
               {% endif %}
             </td>
+
+            <td>
+              {% if p.avg_rating and p.avg_rating > 0 %}
+                {{ '%.1f'|format(p.avg_rating) }} ⭐
+              {% else %}
+                —
+              {% endif %}
+            </td>
+
             <td>${{ '%.2f'|format(p.price or 0) }}</td>
             <td>{% if p.available %}Yes{% else %}No{% endif %}</td>
           </tr>
@@ -99,19 +112,19 @@
         {% set prev_page = page-1 %}
         {% set next_page = page+1 %}
         <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page=1&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}">« First</a>
+          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page=1&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">« First</a>
         </li>
         <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ prev_page }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}">‹ Prev</a>
+          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ prev_page }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">‹ Prev</a>
         </li>
 
         <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
 
         <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ next_page }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}">Next ›</a>
+          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ next_page }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">Next ›</a>
         </li>
         <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ total_pages }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}">Last »</a>
+          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ total_pages }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">Last »</a>
         </li>
       </ul>
     </nav>

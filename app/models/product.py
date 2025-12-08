@@ -3,9 +3,10 @@ from flask import current_app as app
 
 
 class Product:
-    def __init__(self, id, name, price, available, category, description, image_url):
+    def __init__(self, id, name, price, available, category, description, image_url, creator_id):
         """
         Note: 'category' here is the category *name* (text), joined from Categories.
+        creator_id is the id of the user who created the product (or None).
         """
         self.id = id
         self.name = name
@@ -14,6 +15,8 @@ class Product:
         self.category = category
         self.description = description
         self.image_url = image_url
+        self.creator_id = creator_id
+        self.avg_rating = None
 
     @staticmethod
     def _base_select():
@@ -21,7 +24,7 @@ class Product:
         return '''
 SELECT P.id, P.name, P.price, P.available,
        COALESCE(C.name, '') AS category,
-       P.description, P.image_url
+       P.description, P.image_url, P.creator_id
 FROM Products P
 LEFT JOIN Categories C ON P.category_id = C.id
 '''

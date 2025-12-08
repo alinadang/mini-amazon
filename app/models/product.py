@@ -149,7 +149,7 @@ class Product:
         return '''
 SELECT P.id, P.name, P.price, P.available,
        COALESCE(C.name, '') AS category,
-       P.description, P.image_url
+       P.description, P.image_url, P.creator_id
 FROM Products P
 LEFT JOIN Categories C ON P.category_id = C.id
 '''

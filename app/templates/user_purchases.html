@@ -8,16 +8,147 @@
         ← Back to Home
     </a>
 
+    <!-- Status Filter Tabs -->
+    {% if summary %}
+    <div class="mb-4">
+        <nav class="nav nav-pills">
+            <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+               href="{{ url_for('users.user_purchases_page', status='all') }}">
+                All Orders <span class="badge bg-secondary">{{ summary.total_orders }}</span>
+            </a>
+            <a class="nav-link {% if status_filter == 'fulfilled' %}active{% endif %}" 
+               href="{{ url_for('users.user_purchases_page', status='fulfilled') }}">
+                Fulfilled <span class="badge bg-success">{{ summary.fulfilled_orders }}</span>
+            </a>
+            <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" 
+               href="{{ url_for('users.user_purchases_page', status='pending') }}">
+                Pending <span class="badge bg-warning">{{ summary.pending_orders }}</span>
+            </a>
+        </nav>
+    </div>
+    {% endif %}
+
+    <!-- Filter/Search Form -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Filter & Sort Purchases</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                
+                <div class="col-md-4">
+                    <label for="search" class="form-label">Search Products</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_term if search_term else '' }}" placeholder="Product name...">
+                </div>
+                <div class="col-md-3">
+                    <label for="date_from" class="form-label">Date From</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" 
+                           value="{{ date_from if date_from else '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="date_to" class="form-label">Date To</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to" 
+                           value="{{ date_to if date_to else '' }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                </div>
+            </form>
+            
+            <form method="get" class="row g-3 mt-2">
+                {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                <input type="hidden" name="search" value="{{ search_term if search_term else '' }}">
+                <input type="hidden" name="date_from" value="{{ date_from if date_from else '' }}">
+                <input type="hidden" name="date_to" value="{{ date_to if date_to else '' }}">
+                
+                <div class="col-md-4">
+                    <label for="sort_by" class="form-label">Sort By</label>
+                    <select class="form-select" id="sort_by" name="sort_by">
+                        <option value="date" {% if sort_by == 'date' %}selected{% endif %}>Date</option>
+                        <option value="amount" {% if sort_by == 'amount' %}selected{% endif %}>Total Amount</option>
+                        <option value="name" {% if sort_by == 'name' %}selected{% endif %}>Product Name</option>
+                        <option value="status" {% if sort_by == 'status' %}selected{% endif %}>Status</option>
+                        <option value="quantity" {% if sort_by == 'quantity' %}selected{% endif %}>Quantity</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="sort_order" class="form-label">Sort Order</label>
+                    <select class="form-select" id="sort_order" name="sort_order">
+                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Newest First</option>
+                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Oldest First</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-outline-secondary w-100">Sort</button>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <a href="{{ url_for('users.user_purchases_page') }}" class="btn btn-outline-danger w-100">
+                        Clear All Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {% if purchases and purchases|length > 0 %}
+    <!-- Summary Stats (if available) -->
+    {% if summary %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Orders</h6>
+                    <p class="card-text h4">{{ summary.total_orders }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Items</h6>
+                    <p class="card-text h4">{{ summary.total_items }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Spent</h6>
+                    <p class="card-text h4">${{ "%.2f"|format(summary.total_spent) }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-light">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Fulfillment Rate</h6>
+                    <p class="card-text h4">
+                        {% if summary.total_orders > 0 %}
+                        {{ ((summary.fulfilled_orders / summary.total_orders) * 100)|int }}%
+                        {% else %}
+                        0%
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Purchase History Table -->
     <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
+        <table class="table table-hover">
+            <thead class="table-light">
                 <tr>
-                    <th>Purchased Date</th>
+                    <th>Order Date</th>
                     <th>Product Name</th>
-                    <th>Total Amount</th>
-                    <th>Number of Items</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Item Total</th>
                     <th>Fulfillment Status</th>
+                    <th>Seller</th>
                     <th>Details</th>
                     <th>Re-order</th>
                 </tr>
@@ -25,28 +156,46 @@
             <tbody>
                 {% for p in purchases %}
                 <tr>
-                    <td>{{ p.time_purchased }}</td>
-                    <td>{{ p.product_name }}</td>
+                    <td>{{ p.time_purchased.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>
-                        {% if p.product_price is not none %}
-                            ${{ '%.2f'|format(p.product_price) }}
+                        <a href="{{ url_for('products_api.product_detail', pid=p.product_id) }}">
+                            {{ p.product_name }}
+                        </a>
+                    </td>
+                    <td>${{ "%.2f"|format(p.product_price) }}</td>
+                    <td>{{ p.num_items }}</td>
+                    <td><strong>${{ "%.2f"|format(p.item_total) }}</strong></td>
+                    <td>
+                        {% if p.status == 'fulfilled' %}
+                        <span class="badge bg-success">Fulfilled</span>
+                        {% elif p.status == 'pending' %}
+                        <span class="badge bg-warning">Pending</span>
                         {% else %}
-                            N/A
+                        <span class="badge bg-secondary">{{ p.status }}</span>
+                        {% endif %}
+                        {% if p.fulfillment_date %}
+                        <br><small class="text-muted">{{ p.fulfillment_date.strftime('%Y-%m-%d') }}</small>
                         {% endif %}
                     </td>
-                    <td>1</td>
                     <td>
-                        {% if p.product_available %}
-                            Fulfilled
+                        {% if p.seller_id %}
+                        <a href="{{ url_for('users.public_profile', user_id=p.seller_id) }}">
+                            {{ p.seller_name }}
+                        </a>
                         {% else %}
-                            Unavailable
+                        {{ p.seller_name }}
                         {% endif %}
                     </td>
                     <td>
-                        {# Adjust route/param names if your product detail route is different #}
-                            <a href="{{ url_for('products_api.product_detail', pid=p.product_id) }}"
+                        <a href="{{ url_for('users.order_details', order_id=p.order_id) }}"
                            class="btn btn-sm btn-info">
-                            View Details
+                            Order Details
+                        </a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('products_api.product_detail', pid=p.product_id) }}"
+                           class="btn btn-sm btn-success">
+                            Re-order
                         </a>
                     </td>
                 </tr>
@@ -55,7 +204,28 @@
         </table>
     </div>
     {% else %}
-        <div class="alert alert-info">You have no purchases yet.</div>
+        <div class="alert alert-info">
+            <h4>No purchases found</h4>
+            {% if search_term or date_from or date_to or status_filter != 'all' %}
+            <p>Try adjusting your filters or search terms.</p>
+            <a href="{{ url_for('users.user_purchases_page') }}" class="btn btn-outline-primary">
+                Clear All Filters
+            </a>
+            {% else %}
+            <p>You haven't made any purchases yet. Start shopping!</p>
+            {% endif %}
+            <a href="{{ url_for('index.index') }}" class="btn btn-primary">Browse Products</a>
+        </div>
     {% endif %}
 </div>
+
+<style>
+.badge {
+    font-size: 0.85em;
+    padding: 0.4em 0.8em;
+}
+.nav-pills .nav-link.active {
+    background-color: #0d6efd;
+}
+</style>
 {% endblock %}

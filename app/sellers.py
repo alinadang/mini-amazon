@@ -80,6 +80,7 @@ def seller_profile(seller_id):
 def my_seller_dashboard():
     return redirect(url_for('.seller_profile', seller_id=current_user.id))
 
+
 @sellers_bp.route('/api/seller_inventory/add', methods=['POST'])
 @login_required
 def add_to_inventory():
@@ -92,12 +93,24 @@ def add_to_inventory():
     if not product_id:
         return jsonify({"error": "product_id required"}), 400
     
+    if quantity < 0:
+        return jsonify({"error": "quantity cannot be negative"}), 400
+        
+    if seller_price is not None and seller_price < 0:
+        return jsonify({"error": "price cannot be negative"}), 400
+    
     db = current_app.db
     try:
-        # Check if product exists
-        product_check = list(db.execute("SELECT id FROM Products WHERE id = :pid", pid=product_id))
+        # Check if product exists and is available
+        product_check = list(db.execute(
+            "SELECT id, available FROM Products WHERE id = :pid", 
+            pid=product_id
+        ))
         if not product_check:
             return jsonify({"error": "Product does not exist"}), 404
+        
+        if not product_check[0][1]:
+            return jsonify({"error": "Product is not available for sale"}), 400
             
         db.execute("""
             INSERT INTO Inventory (seller_id, product_id, quantity, seller_price)
@@ -122,6 +135,12 @@ def update_inventory():
     
     if not product_id:
         return jsonify({"error": "product_id required"}), 400
+    
+    if quantity is not None and quantity < 0:
+        return jsonify({"error": "quantity cannot be negative"}), 400
+        
+    if seller_price is not None and seller_price < 0:
+        return jsonify({"error": "price cannot be negative"}), 400
     
     db = current_app.db
     try:
@@ -155,7 +174,8 @@ def remove_from_inventory():
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
+
 @sellers_bp.route('/api/seller_orders', methods=['GET'])
 @login_required
 def seller_orders_api():
@@ -163,33 +183,41 @@ def seller_orders_api():
     status_filter = request.args.get('status', 'all')
     
     db = current_app.db
+    
     query = """
-        SELECT DISTINCT o.id AS order_id,
+        WITH seller_order_items AS (
+            SELECT oi.order_id,
+                   COUNT(*) as seller_item_count,
+                   SUM(CASE WHEN oi.fulfillment_status = 'fulfilled' THEN 1 ELSE 0 END) as fulfilled_count
+            FROM OrderItems oi
+            WHERE oi.seller_id = :seller_id
+            GROUP BY oi.order_id
+        )
+        SELECT o.id AS order_id,
                o.order_date,
                o.total_amount,
                u.firstname || ' ' || u.lastname AS buyer_name,
                u.email AS buyer_email,
-               COUNT(oi.id) AS item_count,
-               STRING_AGG(DISTINCT oi.fulfillment_status, ',') AS statuses
+               COALESCE(u.address, 'No address provided') AS buyer_address,
+               soi.seller_item_count,
+               CASE 
+                   WHEN soi.fulfilled_count = soi.seller_item_count THEN 'fulfilled'
+                   WHEN soi.fulfilled_count = 0 THEN 'pending'
+                   ELSE 'partial'
+               END as fulfillment_status
         FROM Orders o
-        JOIN OrderItems oi ON o.id = oi.order_id
+        JOIN seller_order_items soi ON o.id = soi.order_id
         JOIN Users u ON o.user_id = u.id
-        WHERE oi.seller_id = :seller_id
     """
     
-    if status_filter != 'all':
-        query += " AND oi.fulfillment_status = :status"
+    if status_filter == 'pending':
+        query += " WHERE soi.fulfilled_count < soi.seller_item_count"
+    elif status_filter == 'fulfilled':
+        query += " WHERE soi.fulfilled_count = soi.seller_item_count"
     
-    query += """
-        GROUP BY o.id, o.order_date, o.total_amount, u.firstname, u.lastname, u.email
-        ORDER BY o.order_date DESC
-    """
+    query += " ORDER BY o.order_date DESC"
     
-    params = {'seller_id': current_user.id}
-    if status_filter != 'all':
-        params['status'] = status_filter
-        
-    rows = db.execute(query, **params)
+    rows = db.execute(query, seller_id=current_user.id)
     
     orders = []
     for row in rows:
@@ -199,8 +227,9 @@ def seller_orders_api():
             'total_amount': float(row[2]) if row[2] else 0,
             'buyer_name': row[3],
             'buyer_email': row[4],
-            'item_count': row[5],
-            'status': row[6]
+            'buyer_address': row[5],
+            'item_count': row[6],
+            'status': row[7]
         })
     
     return jsonify(orders)
@@ -247,6 +276,15 @@ def fulfill_item():
     
     db = current_app.db
     try:
+        # First verify this item belongs to this seller
+        check = list(db.execute("""
+            SELECT id FROM OrderItems 
+            WHERE id = :item_id AND seller_id = :seller_id
+        """, item_id=item_id, seller_id=current_user.id))
+        
+        if not check:
+            return jsonify({"error": "Item not found or unauthorized"}), 404
+        
         db.execute("""
             UPDATE OrderItems 
             SET fulfillment_status = 'fulfilled',

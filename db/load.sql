@@ -22,7 +22,7 @@ SELECT setval(pg_get_serial_sequence('cartitems','id'), COALESCE((SELECT MAX(id)
 SELECT setval(pg_get_serial_sequence('orders','id'), COALESCE((SELECT MAX(id) FROM orders),0) + 1, false);
 
 -- ORDERITEMS
-\COPY OrderItems(id, order_id, product_id, seller_id, quantity, price, fulfillment_status, fulfilled_date) FROM 'OrderItems.csv' WITH (FORMAT csv, DELIMITER ',', NULL '');
+\COPY OrderItems(id, order_id, product_id, seller_id, quantity, price, fulfillment_status, fulfilled_date) FROM 'OrderItems.csv' WITH (FORMAT csv, DELIMITER ',', NULL '', FORCE_NULL(fulfilled_date));
 SELECT setval(pg_get_serial_sequence('orderitems','id'), COALESCE((SELECT MAX(id) FROM orderitems),0) + 1, false);
 
 -- WISHES

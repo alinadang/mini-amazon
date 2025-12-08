@@ -14,7 +14,6 @@
     .add-product { background: #f5f5f5; padding: 16px; margin: 20px 0; border-radius: 4px; }
     .add-product input { padding: 8px; margin-right: 8px; }
     .nav-links { margin: 20px 0; }
-    .nav-links a { margin-right: 15px; }
   </style>
 </head>
 <body>
@@ -25,8 +24,7 @@
   {% if current_user.is_authenticated and current_user.id == seller.id %}
   <div class="nav-links">
     <strong>My Seller Dashboard:</strong>
-    <a href="{{ url_for('sellers.seller_orders_page') }}">View Orders to Fulfill</a>
-    <a href="{{ url_for('sellers.seller_analytics_page') }}">View Analytics</a>
+    <a href="{{ url_for('sellers.seller_orders_page') }}">View Orders to Fulfill</a> | <a href="{{ url_for('sellers.seller_analytics_page') }}">View Analytics</a>
   </div>
 
   <h2>My Inventory (Editable)</h2>

@@ -90,9 +90,9 @@ def add_to_cart():
     else:
         seller_id = None
 
-    if not seller_id:
+    if seller_id is None:
         seller_id = get_seller_id_for_product(pid)
-        if not seller_id:
+        if seller_id is None:
             if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return jsonify({"error": "No seller with stock for product"}), 404
             return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
@@ -187,9 +187,9 @@ def add_to_cart_form():
     else:
         seller_id = None
 
-    if not seller_id:
+    if seller_id is None:
         seller_id = get_seller_id_for_product(pid)
-        if not seller_id:
+        if seller_id is None:
             # no seller with stock
             return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
 
@@ -244,9 +244,9 @@ def checkout_api():
             qty = int(qty)
             price = float(price) if price is not None else 0.0
 
-            if not seller_id:
+            if seller_id is None:
                 seller_id = get_seller_id_for_product(pid)
-                if not seller_id:
+                if seller_id is None:
                     db.execute("ROLLBACK;")
                     return jsonify({"error": f"No seller available for product {pid}"}), 400
 

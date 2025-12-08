@@ -7,10 +7,32 @@
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 16px; }
     ul { padding-left: 18px; }
     li { margin: 8px 0; }
+    .my-dashboard { 
+      background: #f0f8ff; 
+      padding: 12px; 
+      margin: 16px 0; 
+      border-radius: 4px; 
+      border: 1px solid #4a90e2;
+    }
+    .my-dashboard a {
+      font-weight: bold;
+      color: #4a90e2;
+      text-decoration: none;
+    }
+    .my-dashboard a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
   <a href="{{ url_for('index.index') }}">Home</a> | <strong>Sellers</strong>
+  
+  {% if current_user.is_authenticated %}
+  <div class="my-dashboard">
+    📊 <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">Go to My Seller Dashboard</a>
+  </div>
+  {% endif %}
+  
   <h1>Sellers</h1>
   <ul>
     {% for s in sellers %}

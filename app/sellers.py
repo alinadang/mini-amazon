@@ -189,7 +189,7 @@ def seller_orders_api():
             SELECT oi.order_id,
                    COUNT(*) as seller_item_count,
                    SUM(CASE WHEN oi.fulfillment_status = 'fulfilled' THEN 1 ELSE 0 END) as fulfilled_count
-            FROM OrderItems oi
+            FROM orderitems oi
             WHERE oi.seller_id = :seller_id
             GROUP BY oi.order_id
         )
@@ -205,16 +205,16 @@ def seller_orders_api():
                    WHEN soi.fulfilled_count = 0 THEN 'pending'
                    ELSE 'partial'
                END as fulfillment_status
-        FROM Orders o
+        FROM orders o
         JOIN seller_order_items soi ON o.id = soi.order_id
-        JOIN Users u ON o.user_id = u.id
+        JOIN users u ON o.user_id = u.id
         WHERE o.status != 'cancelled'
     """
     
     if status_filter == 'pending':
-        query += " WHERE soi.fulfilled_count < soi.seller_item_count"
+        query += " AND soi.fulfilled_count < soi.seller_item_count"
     elif status_filter == 'fulfilled':
-        query += " WHERE soi.fulfilled_count = soi.seller_item_count"
+        query += " AND soi.fulfilled_count = soi.seller_item_count"
     
     query += " ORDER BY o.order_date DESC"
     

@@ -7,14 +7,15 @@
     {% if creator %}
       &nbsp;·&nbsp;Created by: {{ creator.firstname }} {{ creator.lastname }}
     {% endif %}
+    &nbsp;·&nbsp;<strong>Sold:</strong> {{ product_total_sold or 0 }}
   </div>
 
   <div style="display:flex; gap:18px; align-items:flex-start; margin-top:12px;">
     <div>
       <img src="{{ product.image_url or ('https://picsum.photos/seed/' ~ product.id ~ '/800/600') }}"
-        alt="{{ product.name }}"
-        style="max-width:300px; max-height:300px; border:1px solid #ddd; padding:6px"
-        onerror="this.onerror=null;this.src='https://via.placeholder.com/300x300?text=No+Image';" />
+           alt="{{ product.name }}"
+           style="max-width:300px; max-height:300px; border:1px solid #ddd; padding:6px"
+           onerror="this.onerror=null;this.src='https://via.placeholder.com/300x300?text=No+Image';" />
     </div>
     <div style="flex:1">
       <p><strong>Price:</strong> ${{ '%.2f'|format(product.price or 0) }}</p>
@@ -22,64 +23,80 @@
       {% if product.category %}
         <p><strong>Category:</strong> {{ product.category }}</p>
       {% endif %}
-      <p><strong>Sold:</strong> {{ product_total_sold or 0 }}</p>
+
       <hr/>
       <h4>Description</h4>
-      <p>{% if product.description %}{{ product.description }}{% else %}No description available.{% endif %}</p>
+      <p>{{ product.description or "No description available." }}</p>
     </div>
   </div>
 
-<hr/>
-<div style="display:flex; justify-content:space-between; align-items:center;">
-  <h4>Sellers</h4>
-  <div>
-    {% if current_user.is_authenticated and product.creator_id == current_user.id %}
-      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('products_api.product_edit', pid=product.id) }}">Edit</a>
-    {% endif %}
-    {% if current_user.is_authenticated %}
-      <form action="{{ url_for('products_api.product_sell', pid=product.id) }}" method="post" style="display:inline-block; margin-left:8px;">
-        <input type="hidden" name="product_id" value="{{ product.id }}"/>
-        <input type="number" name="qty" value="1" min="1" style="width:80px; display:inline-block;"/>
-        <input type="number" step="0.01" name="seller_price" placeholder="price" required style="width:110px; display:inline-block;"/>
-        <button class="btn btn-sm btn-success" type="submit">List as Seller</button>
-      </form>
-    {% else %}
-      <a class="btn btn-link btn-sm" href="{{ url_for('users.login') }}">Log in to sell</a>
-    {% endif %}
-  </div>
-</div>
+  <hr/>
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4>Sellers</h4>
 
-{% if sellers %}
-<table class="table table-sm">
-  <thead><tr><th>Seller</th><th>Qty</th><th>Price</th><th></th></tr></thead>
-  <tbody>
-    {% for s in sellers %}
-    <tr>
-      <td>{{ s.firstname }} {{ s.lastname }}</td>
-      <td>{{ s.quantity }}</td>
-      <td>${{ '%.2f'|format(s.seller_price) }}</td>
-      <td>
-        <form action="{{ url_for('cart.add_to_cart_form') }}" method="post" style="display:flex; gap:8px; align-items:center;">
-          <input type="hidden" name="pid" value="{{ product.id }}">
-          <input type="hidden" name="seller_id" value="{{ s.seller_id }}">
-          <input type="number" name="qty" value="1" min="1" max="{{ s.quantity }}" style="width:80px"/>
-          <button class="btn btn-sm btn-primary js-add-to-cart-ajax"
-                  type="button"
-                  data-pid="{{ product.id }}"
-                  data-seller="{{ s.seller_id }}"
-                  data-max="{{ s.quantity }}">
-            Add to Cart
-          </button>
-          <button type="submit" style="display:none" aria-hidden="true"></button>
+    <div>
+      {% if current_user.is_authenticated and product.creator_id == current_user.id %}
+        <a class="btn btn-sm btn-outline-primary" 
+           href="{{ url_for('products_api.product_edit', pid=product.id) }}">
+          Edit
+        </a>
+      {% endif %}
+
+      {% if current_user.is_authenticated %}
+        <form action="{{ url_for('products_api.product_sell', pid=product.id) }}" 
+              method="post"
+              style="display:inline-block; margin-left:8px;">
+          <input type="hidden" name="product_id" value="{{ product.id }}"/>
+          <input type="number" name="qty" value="1" min="1" style="width:80px"/>
+          <input type="number" name="seller_price" step="0.01" placeholder="price" 
+                 required style="width:110px"/>
+          <button class="btn btn-sm btn-success" type="submit">List as Seller</button>
         </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-  <p>No sellers currently for this product.</p>
-{% endif %}
+      {% else %}
+        <a class="btn btn-link btn-sm" href="{{ url_for('users.login') }}">Log in to sell</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if sellers %}
+  <table class="table table-sm mt-2">
+    <thead>
+      <tr>
+        <th>Seller</th>
+        <th>Qty</th>
+        <th>Price</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in sellers %}
+      <tr id="seller-row-{{ s.seller_id }}">
+        <td>{{ s.firstname }} {{ s.lastname }}</td>
+        <td class="seller-qty" data-seller="{{ s.seller_id }}">{{ s.quantity }}</td>
+        <td>${{ '%.2f'|format(s.seller_price) }}</td>
+        <td>
+          <form method="post" style="display:flex; gap:8px; align-items:center;">
+            <input type="hidden" name="pid" value="{{ product.id }}">
+            <input type="hidden" name="seller_id" value="{{ s.seller_id }}">
+            <input type="number" name="qty" value="1" min="1" max="{{ s.quantity }}"
+                   style="width:80px" class="qty-input" data-seller="{{ s.seller_id }}"/>
+
+            <button type="button"
+                    class="btn btn-sm btn-primary js-add-to-cart"
+                    data-pid="{{ product.id }}"
+                    data-seller="{{ s.seller_id }}"
+                    data-max="{{ s.quantity }}">
+              Add to Cart
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p>No sellers currently for this product.</p>
+  {% endif %}
 
   <hr/>
   <h4>Reviews</h4>
@@ -88,7 +105,7 @@
       <div style="margin-bottom:12px">
         <strong>{{ r.firstname or 'Anonymous' }} {{ r.lastname or '' }}</strong>
         <span style="margin-left:8px">⭐ {{ r.rating }}</span>
-        <div style="font-size:0.95em; color:#333">{{ r.comment }}</div>
+        <div>{{ r.comment }}</div>
         <div style="font-size:0.8em; color:#777;">{{ r.date_reviewed }}</div>
       </div>
     {% endfor %}
@@ -96,103 +113,99 @@
     <p>No reviews yet.</p>
   {% endif %}
 
-  <p style="margin-top:20px;"><a href="{{ url_for('products_api.product_browser') }}">← Back to Browser</a></p>
+  <p style="margin-top:20px;">
+    <a href="{{ url_for('products_api.product_browser') }}">← Back to Browser</a>
+  </p>
 </div>
 
-<div id="toast-container" style="position:fixed; right:20px; bottom:20px; z-index:1100;"></div>
+
+<div id="toast-container"
+     style="position:fixed; right:20px; bottom:20px; z-index:1100;"></div>
 
 <script>
-(function(){
-  function showToast(message, isError) {
-    const container = document.getElementById('toast-container');
-    if (!container) return alert(message);
-    const el = document.createElement('div');
-    el.textContent = message;
-    el.style.minWidth = '200px';
-    el.style.marginTop = '8px';
-    el.style.padding = '10px 14px';
-    el.style.borderRadius = '6px';
-    el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.12)';
-    el.style.fontSize = '14px';
-    el.style.color = '#fff';
-    el.style.background = isError ? '#d9534f' : '#28a745'; 
-    el.style.opacity = '0';
-    el.style.transition = 'opacity 160ms ease, transform 160ms ease';
-    container.appendChild(el);
-    requestAnimationFrame(function(){
-      el.style.opacity = '1';
-      el.style.transform = 'translateY(0)';
-    });
+function showToast(msg, isError) {
+  const box = document.getElementById("toast-container");
+  const t = document.createElement("div");
+  t.textContent = msg;
+  t.style.background = isError ? "#d9534f" : "#28a745";
+  t.style.color = "white";
+  t.style.padding = "10px 14px";
+  t.style.borderRadius = "6px";
+  t.style.marginTop = "8px";
+  t.style.minWidth = "200px";
+  t.style.opacity = "0";
+  t.style.transition = "opacity .25s ease";
+  box.appendChild(t);
+  requestAnimationFrame(() => t.style.opacity = "1");
+  setTimeout(() => { t.style.opacity = "0"; setTimeout(() => t.remove(), 300); }, 2500);
+}
 
-    setTimeout(function(){
-      el.style.opacity = '0';
-      setTimeout(()=> el.remove(), 300);
-    }, 3000);
+document.addEventListener("click", async function(e){
+  const btn = e.target.closest(".js-add-to-cart");
+  if (!btn) return;
+
+  const pid = btn.dataset.pid;
+  const seller = btn.dataset.seller;
+  const maxQty = parseInt(btn.dataset.max);
+
+  const qtyInput = document.querySelector(`input.qty-input[data-seller="${seller}"]`);
+  let qty = parseInt(qtyInput.value);
+
+  if (!maxQty || maxQty <= 0) {
+    showToast("Out of stock", true);
+    return;
+  }
+  if (!qty || qty <= 0) {
+    showToast("Quantity must be at least 1", true);
+    return;
+  }
+  if (qty > maxQty) {
+    showToast(`Only ${maxQty} left in stock`, true);
+    return;
   }
 
-  function promptLogin(loginUrl) {
-    if (confirm('You must be logged in to add to cart. Go to login page now?')) {
-      window.location = loginUrl || '{{ url_for("users.login") }}';
-    }
-  }
-
-  document.addEventListener('click', function(e){
-    const btn = e.target.closest('.js-add-to-cart-ajax');
-    if (!btn) return;
-    e.preventDefault();
-
-    const pid = btn.dataset.pid;
-    const seller = btn.dataset.seller;
-    let qty = 1;
-    const form = btn.closest('form');
-    if (form) {
-      const qinput = form.querySelector('input[name="qty"], input[name="quantity"]');
-      if (qinput) qty = qinput.value || 1;
-    }
-    qty = Math.max(1, parseInt(qty) || 1);
-
-    fetch('{{ url_for("cart.add_to_cart") }}', {
-      method: 'POST',
+  try {
+    const res = await fetch("{{ url_for('cart.add_to_cart') }}", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
       },
-      body: JSON.stringify({ pid: pid, quantity: qty, seller_id: seller })
-    }).then(async function(res){
-
-      // Not logged in
-      if (res.status === 401) {
-        let json = {};
-        try { json = await res.json(); } catch(_) {}
-        promptLogin(json.login_url || '{{ url_for("users.login") }}');
-        return;
-      }
-      let json = {};
-      try { json = await res.json(); } catch(err) {
-        showToast('Unexpected response from server', true);
-        return;
-      }
-      if (json && json.success) {
-        let msg = 'Added to cart';
-        if (json.remaining !== undefined && json.remaining !== null) {
-          msg += ' — ' + json.remaining + ' left';
-        }
-        showToast(msg, false);
-      } else {
-        showToast('Could not add to cart: ' + (json.error || 'unknown'), true);
-      }
-    }).catch(function(err){
-      console.error('Add to cart failed', err);
-      if (form) {
-        const submit = form.querySelector('button[type="submit"]');
-        if (submit) {
-          submit.click();
-          return;
-        }
-      }
-      showToast('Add to cart failed', true);
+      body: JSON.stringify({ pid: pid, seller_id: seller, quantity: qty })
     });
-  });
-})();
+
+    if (res.status === 401) {
+      showToast("Login required", true);
+      window.location = "{{ url_for('users.login') }}";
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!data.success) {
+      showToast(data.error || "Could not add to cart", true);
+      return;
+    }
+
+    showToast("Added to cart", false);
+    const newRemaining = data.remaining;
+    const qtyCell = document.querySelector(`#seller-row-${seller} .seller-qty`);
+    const btnRow = document.getElementById(`seller-row-${seller}`);
+
+    if (qtyCell && newRemaining !== null && newRemaining !== undefined) {
+      qtyCell.textContent = newRemaining;
+      if (newRemaining <= 0) {
+        showToast("Seller now out of stock", false);
+        btn.disabled = true;
+        qtyInput.value = 0;
+        qtyInput.disabled = true;
+      }
+    }
+
+  } catch (err) {
+    console.error(err);
+    showToast("Unexpected error adding to cart", true);
+  }
+});
 </script>
 {% endblock %}

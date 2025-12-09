@@ -7,9 +7,6 @@
     {% if creator %}
       &nbsp;·&nbsp;Created by: {{ creator.firstname }} {{ creator.lastname }}
     {% endif %}
-    {% if product_total_sold is defined %}
-      &nbsp;·&nbsp;Sold: <strong>{{ product_total_sold }}</strong>
-    {% endif %}
   </div>
 
   <div style="display:flex; gap:18px; align-items:flex-start; margin-top:12px;">
@@ -25,6 +22,7 @@
       {% if product.category %}
         <p><strong>Category:</strong> {{ product.category }}</p>
       {% endif %}
+      <p><strong>Sold:</strong> {{ product_total_sold or 0 }}</p>
       <hr/>
       <h4>Description</h4>
       <p>{% if product.description %}{{ product.description }}{% else %}No description available.{% endif %}</p>
@@ -53,19 +51,18 @@
 
 {% if sellers %}
 <table class="table table-sm">
-  <thead><tr><th>Seller</th><th>Qty</th><th>Sold</th><th>Price</th><th></th></tr></thead>
+  <thead><tr><th>Seller</th><th>Qty</th><th>Price</th><th></th></tr></thead>
   <tbody>
     {% for s in sellers %}
     <tr>
       <td>{{ s.firstname }} {{ s.lastname }}</td>
       <td>{{ s.quantity }}</td>
-      <td>{{ s.sold or 0 }}</td>
       <td>${{ '%.2f'|format(s.seller_price) }}</td>
       <td>
         <form action="{{ url_for('cart.add_to_cart_form') }}" method="post" style="display:flex; gap:8px; align-items:center;">
           <input type="hidden" name="pid" value="{{ product.id }}">
           <input type="hidden" name="seller_id" value="{{ s.seller_id }}">
-          <input type="number" name="qty" value="1" min="1" max="{{ s.quantity if s.quantity is not none and s.quantity>0 else 1 }}" style="width:80px"/>
+          <input type="number" name="qty" value="1" min="1" max="{{ s.quantity }}" style="width:80px"/>
           <button class="btn btn-sm btn-primary js-add-to-cart-ajax"
                   type="button"
                   data-pid="{{ product.id }}"

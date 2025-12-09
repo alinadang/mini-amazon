@@ -12,132 +12,229 @@
     <a class="btn btn-link btn-sm" href="{{ url_for('index.index') }}" style="margin-left:8px;">Home</a>
   </div>
 
-  <form method="get" class="form-inline" style="margin-bottom:12px;">
+  <form id="browserForm" method="get" style="display:flex; gap:20px; align-items:flex-start;">
     <input type="hidden" name="page" value="1"/>
-    <label style="margin-right:8px">
-      Per page
-      <input name="per_page" type="number" value="{{ per_page if per_page is defined else k }}" min="1" max="2000" style="width:90px; margin-left:6px"/>
-    </label>
 
-    <label style="margin-left:12px; margin-right:8px">
-      Sort
-      <select name="sort" class="form-control form-control-sm" style="display:inline-block; width:160px; margin-left:6px">
-        <option value="price" {% if sort=='price' %}selected{% endif %}>Price</option>
-        <option value="name" {% if sort=='name' %}selected{% endif %}>Name</option>
-        <option value="id" {% if sort=='id' %}selected{% endif %}>Newest</option>
-      </select>
-    </label>
+    <div style="width:260px; flex:0 0 260px;">
+      <div style="border:1px solid #ddd; padding:14px; border-radius:8px; background:#fafafa;">
+        <h5 style="font-weight:600;">Filters</h5>
 
-    <label style="margin-left:12px; margin-right:8px">
-      Direction
-      <select name="dir" class="form-control form-control-sm" style="display:inline-block; width:120px; margin-left:6px">
-        <option value="asc" {% if dir=='asc' %}selected{% endif %}>Ascending</option>
-        <option value="desc" {% if dir=='desc' %}selected{% endif %}>Descending</option>
-      </select>
-    </label>
+        <div style="margin-top:12px;">
+          <label style="font-weight:600;">Average rating</label>
+          <div style="margin-top:6px;">
+            <label style="display:block; margin-bottom:4px;">
+              <input type="checkbox" name="ratings" value="5" {% if '5' in ratings_selected %}checked{% endif %}/>
+              5★ — average exactly 5.0
+            </label>
+            <label style="display:block; margin-bottom:4px;">
+              <input type="checkbox" name="ratings" value="4" {% if '4' in ratings_selected %}checked{% endif %}/>
+              4★ — average ≥ 4.0 and &lt; 5.0
+            </label>
+            <label style="display:block; margin-bottom:4px;">
+              <input type="checkbox" name="ratings" value="3" {% if '3' in ratings_selected %}checked{% endif %}/>
+              3★ — average ≥ 3.0 and &lt; 4.0
+            </label>
+            <label style="display:block; margin-bottom:4px;">
+              <input type="checkbox" name="ratings" value="2" {% if '2' in ratings_selected %}checked{% endif %}/>
+              2★ — average ≥ 2.0 and &lt; 3.0
+            </label>
+            <label style="display:block; margin-bottom:4px;">
+              <input type="checkbox" name="ratings" value="1" {% if '1' in ratings_selected %}checked{% endif %}/>
+              1★ — average ≥ 1.0 and &lt; 2.0
+            </label>
+            <label style="display:block; margin-bottom:4px;">
+              <input type="checkbox" name="ratings" value="no_reviews" {% if 'no_reviews' in ratings_selected %}checked{% endif %}/>
+              No reviews
+            </label>
+          </div>
+        </div>
 
-    <label style="margin-left:12px; margin-right:8px">
-      Category
-      <select name="category" class="form-control form-control-sm" style="display:inline-block; width:160px; margin-left:6px">
-        <option value="" {% if not category %}selected{% endif %}>(all)</option>
-        {% for c in categories %}
-          <option value="{{ c }}" {% if category==c %}selected{% endif %}>{{ c }}</option>
-        {% endfor %}
-      </select>
-    </label>
+        <div style="margin-top:16px;">
+          <label style="font-weight:600;">Price Range</label>
 
-    <label style="margin-left:12px; margin-right:8px">
-      Search
-      <input name="q" type="text" value="{{ q }}" placeholder="keyword in name" style="margin-left:6px"/>
-    </label>
+          <div style="display:flex; flex-direction:column; gap:8px; margin-top:6px;">
+            <input type="number"
+                   name="min_price"
+                   min="0"
+                   step="0.01"
+                   placeholder="Min"
+                   value="{{ min_price }}"
+                   style="width:100%; padding:6px; box-sizing:border-box;"/>
 
-    <button type="submit" class="btn btn-primary btn-sm" style="margin-left:12px">Apply</button>
-    <a href="{{ url_for('products_api.product_browser') }}" class="btn btn-link btn-sm" style="margin-left:8px">Reset</a>
+            <input type="number"
+                   name="max_price"
+                   min="0"
+                   max="{{ ui_max_price }}"
+                   step="0.01"
+                   placeholder="Max (≤ {{ '%.2f'|format(ui_max_price) }})"
+                   value="{{ max_price }}"
+                   style="width:100%; padding:6px; box-sizing:border-box;"/>
+          </div>
+        </div>
+
+        <div style="margin-top:18px;">
+          <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+          <a class="btn btn-link btn-sm" href="{{ url_for('products_api.product_browser') }}">Reset</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;">
+      <div style="margin-bottom:15px; display:flex; flex-wrap:wrap; gap:16px; align-items:center;">
+
+        <div>
+          Per page:
+          <input name="per_page" type="number" value="{{ per_page if per_page else k }}"
+                 min="1" max="2000" style="width:90px; margin-left:6px;"/>
+        </div>
+
+        <div>
+          Sort:
+          <select name="sort" style="margin-left:6px;">
+            <option value="price" {% if sort=='price' %}selected{% endif %}>Price</option>
+            <option value="name" {% if sort=='name' %}selected{% endif %}>Name</option>
+            <option value="id" {% if sort=='id' %}selected{% endif %}>Newest</option>
+            <option value="rating" {% if sort=='rating' %}selected{% endif %}>Average rating</option>
+            <option value="sales" {% if sort=='sales' %}selected{% endif %}>Total Sales</option>
+          </select>
+        </div>
+
+        <div>
+          Direction:
+          <select name="dir" style="margin-left:6px;">
+            <option value="asc" {% if dir=='asc' %}selected{% endif %}>Ascending</option>
+            <option value="desc" {% if dir=='desc' %}selected{% endif %}>Descending</option>
+          </select>
+        </div>
+
+        <div>
+          Category:
+          <select name="category" style="margin-left:6px;">
+            <option value="" {% if not category %}selected{% endif %}>(all)</option>
+            {% for c in categories %}
+              <option value="{{ c }}" {% if category==c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div style="flex:1; min-width:260px;">
+          Search:
+          <input name="q"
+                 type="text"
+                 value="{{ q }}"
+                 placeholder="Search by product name or description…"
+                 style="width:100%; margin-left:6px; padding:6px; font-size:1rem;"/>
+        </div>
+
+        <div>
+          <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+        </div>
+      </div>
+
+      {% if error %}
+        <div class="alert alert-danger">Error: {{ error }}</div>
+      {% endif %}
+
+      {% if products %}
+        <table class="table table-bordered table-striped">
+          <thead class="thead-dark">
+            <tr>
+              <th style="width:50px;">ID</th>
+              <th style="width:120px;"></th>
+              <th>Product</th>
+              <th>Summary</th>
+              <th>Average rating</th>
+              <th>Price</th>
+              <th>Available</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in products %}
+              <tr>
+                <td>{{ p.id }}</td>
+                <td>
+                  <img src="https://picsum.photos/seed/{{ p.id }}/200/150"
+                       style="max-width:100px; max-height:80px"
+                       onerror="this.src='https://via.placeholder.com/100x80?text=No+Image';"/>
+                </td>
+                <td>
+                  <a href="{{ url_for('products_api.product_detail', pid=p.id) }}">{{ p.name }}</a>
+                  {% if p.category %}
+                    <div style="font-size:0.9em; color:#666">Category: {{ p.category }}</div>
+                  {% endif %}
+                  <div style="font-size:0.85em; color:#444;">Sold: {{ p.total_sold }}</div>
+                </td>
+                <td>
+                  {% if p.description %}
+                    {{ p.description[:180] }}{% if p.description|length > 180 %}...{% endif %}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  {% if p.avg_rating %}
+                    {{ '%.1f'|format(p.avg_rating) }} ⭐
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>${{ '%.2f'|format(p.price or 0) }}</td>
+                <td>{{ 'Yes' if p.available else 'No' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <nav aria-label="Page navigation">
+          <ul class="pagination">
+            {% macro qs(page_num) -%}
+              ?page={{ page_num }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}
+              {%- for r in ratings_selected %}&ratings={{ r }}{%- endfor %}
+              {%- if min_price %}&min_price={{ min_price }}{%- endif %}
+              {%- if max_price %}&max_price={{ max_price }}{%- endif %}
+            {%- endmacro %}
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('products_api.product_browser') }}{{ qs(1)|safe }}">« First</a>
+            </li>
+
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('products_api.product_browser') }}{{ qs(page-1)|safe }}">‹ Prev</a>
+            </li>
+
+            <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
+
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('products_api.product_browser') }}{{ qs(page+1)|safe }}">Next ›</a>
+            </li>
+
+            <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+              <a class="page-link" href="{{ url_for('products_api.product_browser') }}{{ qs(total_pages)|safe }}">Last »</a>
+            </li>
+          </ul>
+        </nav>
+      {% else %}
+        <p>No products found.</p>
+      {% endif %}
+    </div>
   </form>
-
-  {% if error %}
-    <div class="alert alert-danger">Error: {{ error }}</div>
-  {% endif %}
-
-  {% if products and products|length > 0 %}
-    <table class="table table-bordered table-striped">
-      <thead class="thead-dark">
-        <tr>
-          <th style="width:50px;">ID</th>
-          <th style="width:120px;"></th>
-          <th>Product</th>
-          <th>Summary</th>
-          <th>Rating</th>
-          <th>Price</th>
-          <th>Available</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in products %}
-          <tr>
-            <td style="width:50px; font-size:0.85em; color:#555;">
-              {{ p.id }}
-            </td>
-            <td style="width:120px;">
-              <img src="https://picsum.photos/seed/{{ p.id }}/200/150"
-                  alt="{{ p.name }}"
-                  style="max-width:100px; max-height:80px"
-                  loading="lazy"
-                  onerror="this.onerror=null;this.src='https://via.placeholder.com/100x80?text=No+Image';" />
-            </td>
-            <td>
-              <a href="{{ url_for('products_api.product_detail', pid=p.id) }}">{{ p.name }}</a>
-              {% if p.category %}
-                <div style="font-size:0.9em; color:#666">Category: {{ p.category }}</div>
-              {% endif %}
-            </td>
-            <td>
-              {% if p.description %}
-                {{ p.description[:180] }}{% if p.description|length > 180 %}...{% endif %}
-              {% else %}
-                No description available.
-              {% endif %}
-            </td>
-
-            <td>
-              {% if p.avg_rating and p.avg_rating > 0 %}
-                {{ '%.1f'|format(p.avg_rating) }} ⭐
-              {% else %}
-                —
-              {% endif %}
-            </td>
-
-            <td>${{ '%.2f'|format(p.price or 0) }}</td>
-            <td>{% if p.available %}Yes{% else %}No{% endif %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    <nav aria-label="Page navigation">
-      <ul class="pagination">
-        {% set prev_page = page-1 %}
-        {% set next_page = page+1 %}
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page=1&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">« First</a>
-        </li>
-        <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ prev_page }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">‹ Prev</a>
-        </li>
-
-        <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
-
-        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ next_page }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">Next ›</a>
-        </li>
-        <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-          <a class="page-link" href="{{ url_for('products_api.product_browser') }}?page={{ total_pages }}&per_page={{ per_page }}&sort={{ sort }}&dir={{ dir }}&q={{ q }}&category={{ category }}">Last »</a>
-        </li>
-      </ul>
-    </nav>
-    
-  {% else %}
-    <p>No products found.</p>
-  {% endif %}
 </div>
+
+<script>
+document.getElementById("browserForm").addEventListener("submit", function(e){
+  const uiMax = parseFloat("{{ ui_max_price or 0 }}") || 0;
+  const minEl = document.querySelector('input[name="min_price"]');
+  const maxEl = document.querySelector('input[name="max_price"]');
+  let min = minEl && minEl.value ? parseFloat(minEl.value) : null;
+  let max = maxEl && maxEl.value ? parseFloat(maxEl.value) : null;
+
+  if (min !== null && min < 0) { alert("Minimum price must be 0 or greater."); e.preventDefault(); return; }
+  if (max !== null) {
+    if (max < 0) { alert("Maximum price must be 0 or greater."); e.preventDefault(); return; }
+    if (min !== null && max < min) { alert("Maximum price cannot be less than minimum."); e.preventDefault(); return; }
+    if (uiMax && max > uiMax) { alert("Maximum price exceeds allowed maximum."); e.preventDefault(); return; }
+  }
+});
+</script>
+
 {% endblock %}

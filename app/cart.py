@@ -6,7 +6,9 @@ cart_bp = Blueprint('cart', __name__)
 def get_seller_id_for_product(pid):
     db = current_app.db
     seller_row = db.execute("""
-        SELECT seller_id FROM Inventory WHERE product_id = :pid AND quantity > 0 ORDER BY seller_id LIMIT 1
+        SELECT seller_id FROM Inventory
+        WHERE product_id = :pid AND quantity > 0
+        ORDER BY seller_id LIMIT 1
     """, pid=pid)
     if seller_row:
         return seller_row[0][0]
@@ -18,7 +20,7 @@ def get_cart():
     db = current_app.db
     user_id = current_user.id
     query = """
-      SELECT CartItems.pid, CartItems.seller_id, Products.name, 
+      SELECT CartItems.pid, CartItems.seller_id, Products.name,
              COALESCE(Inventory.seller_price, Products.price) as price, CartItems.quantity
       FROM CartItems
       JOIN Products ON CartItems.pid = Products.id
@@ -31,25 +33,10 @@ def get_cart():
 
 @cart_bp.route('/api/cart/add', methods=['POST'])
 def add_to_cart():
-    """
-    Accept either JSON (AJAX) or form-encoded submissions.
-    - JSON example: {"pid": 123, "quantity": 2, "seller_id": 5}
-    - Form example from product_detail: pid, qty (or quantity), seller_id
-
-    Behavior:
-      - If user not logged in:
-          * AJAX/JSON => return 401 + {"error":"login_required","login_url": ...}
-          * form => redirect to login page (with next)
-      - On success:
-          * AJAX/JSON => return {"success": True, "remaining": <inventory_qty>}
-          * form => redirect back (existing flow)
-    """
     db = current_app.db
 
-    # Not logged in -> return machine-friendly or redirect for forms
     if not current_user.is_authenticated:
         if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            # return URL for login so frontend can redirect or show a login popup
             return jsonify({
                 "error": "login_required",
                 "login_url": url_for('users.login', _external=False)
@@ -77,7 +64,6 @@ def add_to_cart():
     except Exception:
         quantity = 1
 
-    # seller_id (optional)
     seller_id_val = data.get('seller_id')
     seller_id = None
     if seller_id_val not in (None, '', []):
@@ -101,7 +87,7 @@ def add_to_cart():
         db.execute("""
           INSERT INTO CartItems (uid, pid, seller_id, quantity)
           VALUES (:uid, :pid, :seller_id, :quantity)
-          ON CONFLICT (uid, pid, seller_id) DO UPDATE 
+          ON CONFLICT (uid, pid, seller_id) DO UPDATE
              SET quantity = CartItems.quantity + :quantity
         """, uid=current_user.id, pid=pid, seller_id=seller_id, quantity=quantity)
     except Exception:
@@ -159,14 +145,9 @@ def remove_from_cart():
     return jsonify({"success": True})
 
 
-# Form-friendly add endpoint (for product_detail HTML form)
 @cart_bp.route('/add', methods=['POST'])
 @login_required
 def add_to_cart_form():
-    """
-    Accepts form POSTs from product detail pages (pid, seller_id optional, qty optional)
-    and redirects back to referrer or product page.
-    """
     try:
         pid = int(request.form.get('pid'))
     except Exception:
@@ -190,7 +171,6 @@ def add_to_cart_form():
     if seller_id is None:
         seller_id = get_seller_id_for_product(pid)
         if seller_id is None:
-            # no seller with stock
             return redirect(request.referrer or url_for('products_api.product_detail', pid=pid))
 
     db = current_app.db
@@ -198,7 +178,7 @@ def add_to_cart_form():
         db.execute("""
           INSERT INTO CartItems (uid, pid, seller_id, quantity)
           VALUES (:uid, :pid, :seller_id, :quantity)
-          ON CONFLICT (uid, pid, seller_id) DO UPDATE 
+          ON CONFLICT (uid, pid, seller_id) DO UPDATE
              SET quantity = CartItems.quantity + :quantity
         """, uid=current_user.id, pid=pid, seller_id=seller_id, quantity=qty)
     except Exception:
@@ -208,17 +188,9 @@ def add_to_cart_form():
     return redirect(request.referrer or url_for('cart.cart_page'))
 
 
-# Transactional checkout
 @cart_bp.route('/api/cart/checkout', methods=['POST'])
 @login_required
 def checkout_api():
-    """
-    Transactional checkout:
-      - locks and decrements inventory rows (ensures enough stock)
-      - creates Orders row
-      - creates OrderItems rows
-      - deletes CartItems for the user
-    """
     db = current_app.db
     uid = current_user.id
 
@@ -231,61 +203,132 @@ def checkout_api():
     """, uid=uid)
 
     if not cart_items:
+        current_app.logger.debug(f"checkout: user {uid} attempted checkout with empty cart")
         return jsonify({"error": "Cart is empty"}), 400
 
     try:
-        # Start transaction
-        db.execute("BEGIN;")
+        total_estimate = 0.0
+        for row in cart_items:
+            _pid, _seller_id, price, qty = row
+            price = float(price) if price is not None else 0.0
+            qty = int(qty)
+            total_estimate += price * qty
+        total_estimate = round(total_estimate, 2)
+    except Exception:
+        current_app.logger.exception("Failed to compute cart total")
+        return jsonify({"error": "Could not compute cart total"}), 500
 
+    try:
+        bal_row = db.execute("SELECT COALESCE(balance,0)::numeric FROM Users WHERE id = :uid", uid=uid)
+        balance = float(bal_row[0][0]) if bal_row and bal_row[0][0] is not None else 0.0
+    except Exception:
+        current_app.logger.exception("Could not fetch user balance")
+        return jsonify({"error": "Could not fetch account balance"}), 500
+
+    if balance < total_estimate:
+        msg = f"Not able to checkout: insufficient account balance (${balance:.2f}) for cart total (${total_estimate:.2f})."
+        current_app.logger.debug(f"checkout_insufficient_balance uid={uid} balance={balance} estimated_total={total_estimate}")
+        return jsonify({"error": "insufficient_balance", "message": msg, "balance": round(balance,2), "total": round(total_estimate,2)}), 400
+
+    try:
+        db.execute("BEGIN;")
         total_amount = 0.0
         order_rows = []
+
         for row in cart_items:
-            pid, seller_id, price, qty = row
+            pid, preferred_seller_id, price, qty = row
             qty = int(qty)
             price = float(price) if price is not None else 0.0
+            chosen_seller = preferred_seller_id
 
-            if seller_id is None:
-                seller_id = get_seller_id_for_product(pid)
-                if seller_id is None:
+            if chosen_seller is None:
+                alt = db.execute("""
+                    SELECT seller_id, COALESCE(seller_price, p.price) AS seller_price
+                    FROM Inventory
+                    LEFT JOIN Products p on p.id = Inventory.product_id
+                    WHERE product_id = :pid AND quantity >= :qty
+                    ORDER BY seller_id
+                    LIMIT 1
+                """, pid=pid, qty=qty)
+                if not alt:
                     db.execute("ROLLBACK;")
-                    return jsonify({"error": f"No seller available for product {pid}"}), 400
+                    current_app.logger.debug(f"checkout_no_seller pid={pid} uid={uid}")
+                    return jsonify({"error": "no_seller", "message": f"No seller available with sufficient stock for product {pid}."}), 400
+                chosen_seller = alt[0][0]
+                price = float(alt[0][1]) if alt[0][1] is not None else price
 
             update_res = db.execute("""
-UPDATE Inventory
-SET quantity = quantity - :qty
-WHERE seller_id = :seller_id AND product_id = :pid AND quantity >= :qty
-RETURNING quantity;
-""", seller_id=seller_id, pid=pid, qty=qty)
+                UPDATE Inventory
+                SET quantity = quantity - :qty
+                WHERE seller_id = :seller_id AND product_id = :pid AND quantity >= :qty
+                RETURNING quantity, COALESCE(seller_price, (SELECT price FROM Products WHERE id = :pid)) as actual_price;
+            """, seller_id=chosen_seller, pid=pid, qty=qty)
 
             if not update_res:
-                db.execute("ROLLBACK;")
-                return jsonify({"error": f"Insufficient stock for product {pid} from seller {seller_id}"}), 400
+                alt_rows = db.execute("""
+                    SELECT seller_id, COALESCE(seller_price, p.price) AS seller_price
+                    FROM Inventory
+                    LEFT JOIN Products p on p.id = Inventory.product_id
+                    WHERE product_id = :pid AND quantity >= :qty
+                    ORDER BY seller_id
+                """, pid=pid, qty=qty)
+                alt_chosen = None
+                if alt_rows:
+                    for ar in alt_rows:
+                        try_sid = ar[0]
+                        try_price = float(ar[1]) if ar[1] is not None else price
+                        upd = db.execute("""
+                            UPDATE Inventory
+                            SET quantity = quantity - :qty
+                            WHERE seller_id = :seller_id AND product_id = :pid AND quantity >= :qty
+                            RETURNING quantity;
+                        """, seller_id=try_sid, pid=pid, qty=qty)
+                        if upd:
+                            alt_chosen = (try_sid, try_price)
+                            break
+                if not alt_chosen:
+                    db.execute("ROLLBACK;")
+                    current_app.logger.debug(f"checkout_insufficient_stock pid={pid} preferred={preferred_seller_id} uid={uid}")
+                    return jsonify({"error": "insufficient_stock", "message": f"Insufficient stock for product {pid}."}), 400
+                chosen_seller, price = alt_chosen[0], alt_chosen[1]
+            else:
+                try:
+                    db_price = update_res[0][1] if len(update_res[0]) > 1 else None
+                    if db_price is not None:
+                        price = float(db_price)
+                except Exception:
+                    pass
 
             total_amount += price * qty
-            order_rows.append({'product_id': pid, 'seller_id': seller_id, 'quantity': qty, 'price': price})
+            order_rows.append({'product_id': pid, 'seller_id': chosen_seller, 'quantity': qty, 'price': price})
 
-        # Create order
+        total_amount = round(total_amount, 2)
+        bal_row_after = db.execute("SELECT COALESCE(balance,0)::numeric FROM Users WHERE id = :uid FOR UPDATE", uid=uid)
+        balance_after = float(bal_row_after[0][0]) if bal_row_after and bal_row_after[0][0] is not None else 0.0
+        if balance_after < total_amount:
+            db.execute("ROLLBACK;")
+            current_app.logger.debug(f"checkout_balance_changed uid={uid} balance={balance_after} total_required={total_amount}")
+            return jsonify({"error":"insufficient_balance_after_select", "message": f"Not able to checkout: balance ${balance_after:.2f} is insufficient for final total ${total_amount:.2f}."}), 400
+
         order_res = db.execute("""
-INSERT INTO Orders (user_id, total_amount)
-VALUES (:uid, :total)
-RETURNING id;
-""", uid=uid, total=round(total_amount, 2))
+            INSERT INTO Orders (user_id, total_amount)
+            VALUES (:uid, :total)
+            RETURNING id;
+        """, uid=uid, total=total_amount)
         order_id = order_res[0][0]
 
-        # Insert order items
         for item in order_rows:
             db.execute("""
-INSERT INTO OrderItems (order_id, product_id, seller_id, quantity, price)
-VALUES (:order_id, :product_id, :seller_id, :quantity, :price)
-""", order_id=order_id, product_id=item['product_id'], seller_id=item['seller_id'], quantity=item['quantity'], price=item['price'])
+                INSERT INTO OrderItems (order_id, product_id, seller_id, quantity, price)
+                VALUES (:order_id, :product_id, :seller_id, :quantity, :price)
+            """, order_id=order_id, product_id=item['product_id'], seller_id=item['seller_id'], quantity=item['quantity'], price=item['price'])
 
-        # Remove items from cart
         db.execute("DELETE FROM CartItems WHERE uid = :uid", uid=uid)
 
-        # Commit
         db.execute("COMMIT;")
 
-        return jsonify({"success": True, "order_id": order_id, "total": round(total_amount, 2)})
+        current_app.logger.debug(f"checkout_success uid={uid} order_id={order_id} total={total_amount}")
+        return jsonify({"success": True, "order_id": order_id, "total": total_amount})
     except Exception:
         current_app.logger.exception("Checkout transaction failed")
         try:

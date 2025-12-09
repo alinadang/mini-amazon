@@ -1,4 +1,3 @@
-# app/products.py
 from flask import Blueprint, request, jsonify, current_app, render_template, flash, redirect, url_for, g, abort
 from flask_login import login_required, current_user
 from .models.product import Product
@@ -39,7 +38,6 @@ def product_browser():
     per_page_raw = request.args.get('per_page', None)
     k_raw = request.args.get('k', None)
 
-    # determine per_page 
     if per_page_raw is not None:
         try:
             per_page = int(per_page_raw)
@@ -59,31 +57,62 @@ def product_browser():
     except Exception:
         page = 1
 
-    # sorting
     sort_key = request.args.get('sort', 'price')
-    sort_dir = request.args.get('dir', '').lower()
-    if sort_key not in ('price', 'name', 'id'):
+    if sort_key not in ('price', 'name', 'id', 'rating', 'sales'):
         sort_key = 'price'
-    if sort_dir not in ('asc', 'desc', ''):
-        sort_dir = ''
+
+    sort_dir = request.args.get('dir', None)
+    sort_dir = (sort_dir or '').lower()
+    if sort_dir not in ('asc', 'desc'):
+        sort_dir = 'asc'
 
     q = request.args.get('q', '').strip()
     category = request.args.get('category', '').strip()
 
-    current_app.logger.debug(f"product_browser: page={page} per_page={per_page} sort={sort_key} dir={sort_dir} q='{q}' category='{category}'")
+    ratings = request.args.getlist('ratings') or []
+
+    min_price_raw = request.args.get('min_price', '').strip()
+    max_price_raw = request.args.get('max_price', '').strip()
+
+    def _parse_price(p):
+        if p is None or p == '':
+            return None
+        try:
+            v = float(p)
+            if v < 0:
+                return None
+            return v
+        except Exception:
+            return None
+
+    min_price_val = _parse_price(min_price_raw)
+    max_price_val = _parse_price(max_price_raw)
+
+    current_app.logger.debug(
+        f"product_browser: page={page} per_page={per_page} sort={sort_key} dir={sort_dir} q='{q}' "
+        f"category='{category}' ratings='{ratings}' min_price='{min_price_val}' max_price='{max_price_val}'"
+    )
 
     try:
         categories = Product.get_categories()
         category_filter = category if category else None
 
-        products, total = Product.get_page(page=page, per_page=per_page,
-                                          sort=sort_key, direction=sort_dir or 'desc',
-                                          q=q if q else None,
-                                          category=category_filter,
-                                          available=True)
+        products, total = Product.get_page(
+            page=page,
+            per_page=per_page,
+            sort=sort_key,
+            direction=sort_dir,
+            q=q if q else None,
+            category=category_filter,
+            available=True,
+            ratings=ratings,
+            min_price=min_price_val,
+            max_price=max_price_val
+        )
+
         total_pages = max(1, math.ceil(total / per_page)) if per_page > 0 else 1
 
-        # Grab avg ratings for products on this page in one query to avoid N+1
+        # Defensive: ensure avg_rating set (Product.get_page should do this)
         pids = [p.id for p in products]
         if pids:
             rows = current_app.db.execute("""
@@ -94,39 +123,63 @@ def product_browser():
             """, pids=pids)
             avg_map = {r[0]: float(r[1]) for r in rows} if rows else {}
             for p in products:
-                p.avg_rating = avg_map.get(p.id)
+                if getattr(p, 'avg_rating', None) is None:
+                    p.avg_rating = avg_map.get(p.id)
+                else:
+                    try:
+                        p.avg_rating = float(p.avg_rating) if p.avg_rating is not None else None
+                    except Exception:
+                        p.avg_rating = avg_map.get(p.id)
         else:
             for p in products:
                 p.avg_rating = None
 
-        return render_template('product_browser.html',
-                               products=products,
-                               page=page,
-                               per_page=per_page,
-                               total=total,
-                               total_pages=total_pages,
-                               sort=sort_key,
-                               dir=sort_dir,
-                               k=per_page,
-                               q=q,
-                               category=category,
-                               categories=categories,
-                               error=None)
+        try:
+            ui_max_price = Product.get_max_price()
+        except Exception:
+            current_app.logger.exception("Could not compute max price")
+            ui_max_price = 0.0
+
+        return render_template(
+            'product_browser.html',
+            products=products,
+            page=page,
+            per_page=per_page,
+            total=total,
+            total_pages=total_pages,
+            sort=sort_key,
+            dir=sort_dir,
+            k=per_page,
+            q=q,
+            category=category,
+            categories=categories,
+            error=None,
+            ratings_selected=ratings or [],
+            min_price=(min_price_raw if min_price_raw != '' else ''),
+            max_price=(max_price_raw if max_price_raw != '' else ''),
+            ui_max_price=ui_max_price
+        )
     except Exception as e:
         current_app.logger.exception("Error in product_browser")
-        return render_template('product_browser.html',
-                               products=[],
-                               page=page,
-                               per_page=per_page,
-                               total=0,
-                               total_pages=0,
-                               sort=sort_key,
-                               dir=sort_dir,
-                               k=per_page,
-                               q=q,
-                               category=category,
-                               categories=Product.get_categories(),
-                               error=str(e))
+        return render_template(
+            'product_browser.html',
+            products=[],
+            page=page,
+            per_page=per_page,
+            total=0,
+            total_pages=0,
+            sort=sort_key,
+            dir=sort_dir,
+            k=per_page,
+            q=q,
+            category=category,
+            categories=Product.get_categories(),
+            error=str(e),
+            ratings_selected=ratings or [],
+            min_price=(min_price_raw if min_price_raw != '' else ''),
+            max_price=(max_price_raw if max_price_raw != '' else ''),
+            ui_max_price=Product.get_max_price() if hasattr(Product, 'get_max_price') else 0
+        )
 
 
 @bp.route('/product/<int:pid>')
@@ -137,25 +190,30 @@ def product_detail(pid):
 
     db = current_app.db
 
-    # set avg_rating for the product
     avg_row = db.execute("SELECT AVG(rating)::numeric FROM Reviews WHERE product_id = :pid", pid=pid)
     product.avg_rating = float(avg_row[0][0]) if avg_row and avg_row[0][0] is not None else None
 
-    # fetch creator info
+    product_total_sold = 0
+    try:
+        total_row = db.execute("SELECT COALESCE(SUM(quantity),0) FROM OrderItems WHERE product_id = :pid", pid=pid)
+        if total_row:
+            product_total_sold = int(total_row[0][0])
+    except Exception:
+        current_app.logger.exception("Could not fetch product total sales; continuing with zero")
+
     creator = None
     if getattr(product, 'creator_id', None) is not None:
         r = db.execute("SELECT id, firstname, lastname FROM Users WHERE id = :uid", uid=product.creator_id)
         if r:
             creator = {'id': r[0][0], 'firstname': r[0][1], 'lastname': r[0][2]}
 
-    # fetch sellers and the seller's name
     sellers_rows = db.execute("""
       SELECT i.seller_id, i.quantity, COALESCE(i.seller_price, p.price) as seller_price,
              u.firstname, u.lastname
       FROM Inventory i
       JOIN Users u ON u.id = i.seller_id
       LEFT JOIN Products p ON p.id = i.product_id
-      WHERE i.product_id = :pid AND i.quantity > 0
+      WHERE i.product_id = :pid
       ORDER BY i.seller_id
     """, pid=pid)
 
@@ -170,7 +228,6 @@ def product_detail(pid):
                 'lastname': r[4]
             })
 
-    # fetch reviews with user names
     review_rows = db.execute("""
       SELECT r.rating, r.comment, r.date_reviewed, u.firstname, u.lastname
       FROM Reviews r
@@ -190,27 +247,26 @@ def product_detail(pid):
                 'lastname': r[4]
             })
 
-    return render_template('product_detail.html', product=product, sellers=sellers, reviews=reviews, creator=creator)
+    return render_template(
+        'product_detail.html',
+        product=product,
+        sellers=sellers,
+        reviews=reviews,
+        creator=creator,
+        product_total_sold=product_total_sold
+    )
+
 
 @bp.route('/product/<int:pid>/sell', methods=['POST'])
 @login_required
 def product_sell(pid):
-    """
-    Let the current user sell this product:
-      - accepts form fields: qty or quantity (int) and seller_price (float, optional)
-      - if Inventory row exists for (current_user.id, pid) update quantity and price,
-        otherwise insert a new Inventory row.
-    Redirects back to product detail page and flashes a message.
-    """
     db = current_app.db
 
-    # ensure product exists
     prod = Product.get(pid)
     if not prod:
         flash("Product not found", "danger")
         return redirect(url_for('products_api.product_browser'))
 
-    # parse quantity (accept 'qty' or 'quantity')
     qty_raw = request.form.get('qty') or request.form.get('quantity') or '0'
     try:
         qty = int(qty_raw)
@@ -220,7 +276,6 @@ def product_sell(pid):
         flash("Quantity must be a positive integer", "danger")
         return redirect(url_for('products_api.product_detail', pid=pid))
 
-    # parse price (optional)
     seller_price = None
     price_raw = (request.form.get('seller_price') or '').strip()
     if price_raw != '':
@@ -235,7 +290,6 @@ def product_sell(pid):
     seller_id = current_user.id
 
     try:
-        # Upsert inventory row: if exists, increment quantity and update price (if provided)
         if seller_price is not None:
             db.execute("""
                 INSERT INTO Inventory (seller_id, product_id, quantity, seller_price)
@@ -245,7 +299,6 @@ def product_sell(pid):
                       seller_price = EXCLUDED.seller_price;
             """, seller_id=seller_id, pid=pid, qty=qty, seller_price=seller_price)
         else:
-            # don't change seller_price if not provided; just increment quantity
             update_res = db.execute("""
                 UPDATE Inventory
                 SET quantity = quantity + :qty
@@ -320,7 +373,6 @@ def product_edit(pid):
     if not product:
         abort(404)
 
-    # only creator may edit 
     if product.creator_id is not None and product.creator_id != current_user.id:
         flash('Not authorized to edit this product', 'danger')
         return redirect(url_for('products_api.product_detail', pid=pid))

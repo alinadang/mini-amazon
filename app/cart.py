@@ -20,16 +20,24 @@ def get_cart():
     db = current_app.db
     user_id = current_user.id
     query = """
-      SELECT CartItems.pid, CartItems.seller_id, Products.name,
-             COALESCE(Inventory.seller_price, Products.price) as price, CartItems.quantity
+      SELECT
+          CartItems.pid,
+          CartItems.seller_id,
+          Products.name,
+          COALESCE(Inventory.seller_price, Products.price) AS price,
+          CartItems.quantity,
+          Products.image_url
       FROM CartItems
       JOIN Products ON CartItems.pid = Products.id
-      LEFT JOIN Inventory ON CartItems.seller_id = Inventory.seller_id AND CartItems.pid = Inventory.product_id
+      LEFT JOIN Inventory
+             ON CartItems.seller_id = Inventory.seller_id
+            AND CartItems.pid = Inventory.product_id
       WHERE CartItems.uid = :user_id
     """
     items = db.execute(query, user_id=user_id)
-    columns = ['pid', 'seller_id', 'name', 'price', 'quantity']
+    columns = ['pid', 'seller_id', 'name', 'price', 'quantity', 'image_url']
     return jsonify([dict(zip(columns, row)) for row in items])
+
 
 @cart_bp.route('/api/cart/add', methods=['POST'])
 def add_to_cart():

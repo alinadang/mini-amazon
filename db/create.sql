@@ -53,6 +53,7 @@ CREATE TABLE CartItems (
     seller_id INT NOT NULL REFERENCES Users(id),
     quantity INT NOT NULL DEFAULT 1,
     time_added TIMESTAMP WITHOUT TIME ZONE DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+    saved BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE (uid, pid, seller_id)
 );
 

@@ -9,6 +9,7 @@
         </a>
     </div>
 
+    <!-- Main cart -->
     <div class="card shadow-sm">
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <span>Cart Items</span>
@@ -39,14 +40,61 @@
             </div>
         </div>
 
-        <div class="card-footer d-flex justify-content-between align-items-center">
+        <div class="card-footer d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
             <div>
-                <strong>Total:</strong>
+                <strong>Subtotal:</strong>
                 <span id="cart-total">$0.00</span>
+                <span id="cart-discount-text" class="text-success ms-2" style="display:none;">
+                    (Discount: <span id="cart-discount-amount">$0.00</span>)
+                </span>
+                <div>
+                    <strong>Final total:</strong>
+                    <span id="cart-final-total">$0.00</span>
+                </div>
             </div>
-            <button id="checkout-btn" class="btn btn-success" onclick="checkoutCart()" disabled>
-                Checkout
-            </button>
+            <div class="d-flex gap-2 align-items-center">
+                <input type="text" id="coupon-code"
+                    class="form-control form-control-sm"
+                    style="width:150px;"
+                    placeholder="Coupon code">
+                <button class="btn btn-outline-primary btn-sm" onclick="applyCoupon()">
+                    Apply
+                </button>
+                <button id="checkout-btn" class="btn btn-success" onclick="checkoutCart()" disabled>
+                    Checkout
+                </button>
+            </div>
+        </div>
+
+
+    <!-- Saved for later -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span>Saved for Later</span>
+            <span class="small text-muted">Items you may buy in the future</span>
+        </div>
+
+        <div class="card-body">
+            <div id="saved-empty" class="alert alert-secondary mb-0" style="display:none;">
+                You have no saved items.
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">Product</th>
+                            <th scope="col">Seller ID</th>
+                            <th scope="col">Unit Price</th>
+                            <th scope="col" style="width:120px;">Quantity</th>
+                            <th scope="col">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="saved-table-body">
+                        <!-- filled by cart.js -->
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

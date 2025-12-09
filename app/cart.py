@@ -33,6 +33,32 @@ def get_cart():
              ON CartItems.seller_id = Inventory.seller_id
             AND CartItems.pid = Inventory.product_id
       WHERE CartItems.uid = :user_id
+        AND CartItems.saved = FALSE
+    """
+    items = db.execute(query, user_id=user_id)
+    columns = ['pid', 'seller_id', 'name', 'price', 'quantity', 'image_url']
+    return jsonify([dict(zip(columns, row)) for row in items])
+
+@cart_bp.route('/api/cart/saved', methods=['GET'])
+@login_required
+def get_saved_cart():
+    db = current_app.db
+    user_id = current_user.id
+    query = """
+      SELECT
+          CartItems.pid,
+          CartItems.seller_id,
+          Products.name,
+          COALESCE(Inventory.seller_price, Products.price) AS price,
+          CartItems.quantity,
+          Products.image_url
+      FROM CartItems
+      JOIN Products ON CartItems.pid = Products.id
+      LEFT JOIN Inventory
+             ON CartItems.seller_id = Inventory.seller_id
+            AND CartItems.pid = Inventory.product_id
+      WHERE CartItems.uid = :user_id
+        AND CartItems.saved = TRUE
     """
     items = db.execute(query, user_id=user_id)
     columns = ['pid', 'seller_id', 'name', 'price', 'quantity', 'image_url']
@@ -152,6 +178,29 @@ def remove_from_cart():
     """, uid=current_user.id, pid=pid, seller_id=seller_id)
     return jsonify({"success": True})
 
+@cart_bp.route('/api/cart/save', methods=['POST'])
+@login_required
+def save_for_later():
+    db = current_app.db
+    data = request.get_json(silent=True) or {}
+    pid = data.get("pid")
+    seller_id = data.get("seller_id")
+    saved = bool(data.get("saved", True))
+
+    try:
+        pid = int(pid)
+        seller_id = int(seller_id)
+    except Exception:
+        return jsonify({"error": "Product ID and seller ID required and must be integers"}), 400
+
+    db.execute("""
+        UPDATE CartItems
+        SET saved = :saved
+        WHERE uid = :uid AND pid = :pid AND seller_id = :seller_id
+    """, uid=current_user.id, pid=pid, seller_id=seller_id, saved=saved)
+
+    return jsonify({"success": True})
+
 
 @cart_bp.route('/add', methods=['POST'])
 @login_required
@@ -201,6 +250,9 @@ def add_to_cart_form():
 def checkout_api():
     db = current_app.db
     uid = current_user.id
+
+    data = request.get_json(silent=True) or {}
+    coupon = (data.get("coupon") or "").strip().upper()
 
     # 1. Load current cart items
     cart_items = db.execute("""
@@ -369,6 +421,15 @@ def checkout_api():
 
         total_amount = round(total_amount, 2)
 
+        # Simple coupon: SAVE10 = 10% off entire cart
+        discount = 0.0
+        if coupon == "SAVE10":
+            discount = round(total_amount * 0.10, 2)
+
+        total_amount = round(total_amount - discount, 2)
+        if total_amount < 0:
+            total_amount = 0.0
+
         # Lock user row and re-check balance
         bal_row_after = db.execute(
             "SELECT COALESCE(balance,0)::numeric FROM Users WHERE id = :uid FOR UPDATE",
@@ -436,6 +497,7 @@ def checkout_api():
             "success": True,
             "order_id": order_id,
             "total": total_amount,
+            "discount": discount,
             "new_balance": round(new_balance, 2)
         })
     except Exception:

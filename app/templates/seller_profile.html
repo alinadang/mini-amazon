@@ -18,8 +18,8 @@
             </div>
           </div>
           <div class="text-right d-none d-md-block">
-            <a href="{{ url_for('sellers.sellers_list') }}"
-               class="btn btn-outline-light btn-sm mb-1">
+            <a href="{{ url_for('users.search_users') }}"
+              class="btn btn-outline-light btn-sm mb-1">
               ← Back to Sellers
             </a>
           </div>
@@ -41,6 +41,47 @@
       </div>
     </div>
   </div>
+
+  {% if seller_stats %}
+  <div class="row mb-4">
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Products Listed</div>
+          <div class="h4 mb-0">{{ seller_stats.product_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Orders Received</div>
+          <div class="h4 mb-0">{{ seller_stats.order_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Items Sold</div>
+          <div class="h4 mb-0">{{ seller_stats.items_sold }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Total Revenue</div>
+          <div class="h4 mb-0">
+            ${{ "%.2f"|format(seller_stats.total_revenue) }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  
+
 
   <!-- Inventory header + add-product block (owner only) -->
   <div class="d-flex justify-content-between align-items-center mb-3">

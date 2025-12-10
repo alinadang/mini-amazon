@@ -7,8 +7,7 @@ from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Le
 from .models.user import User
 from flask import jsonify
 from .models.purchase import Purchase
-from flask import render_template, redirect, url_for, flash, request, current_app as app
-
+from flask import current_app as app
 
 from flask import Blueprint
 bp = Blueprint('users', __name__)
@@ -35,7 +34,6 @@ def login():
         next_page = request.args.get('next')
         if not next_page or url_parse(next_page).netloc != '':
             next_page = url_for('index.index')
-
         return redirect(next_page)
     return render_template('login.html', title='Sign In', form=form)
 
@@ -52,7 +50,6 @@ class RegistrationForm(FlaskForm):
             Length(min=6, message="Password must be at least 6 characters long.")
         ]
     )
-
     password2 = PasswordField(
         'Repeat Password',
         validators=[
@@ -82,7 +79,7 @@ def register():
             return redirect(url_for('users.login'))
     return render_template('register.html', title='Register', form=form)
 
-"shows the settings account"
+
 @bp.route('/settings', methods=['GET'])
 @login_required
 def account_settings():
@@ -90,45 +87,39 @@ def account_settings():
     balance = User.get_balance(current_user.id)
     return render_template('account_settings.html', user=user, balance=balance)
 
+
 @bp.route('/settings/profile', methods=['POST'])
 @login_required
 def update_profile():
-    #updating the user info: email, first and last name, and address
     email = request.form.get('email', '').strip()
     firstname = request.form.get('firstname', '').strip()
     lastname = request.form.get('lastname', '').strip()
     address = request.form.get('address', '').strip() or None
 
-    #validation
     if not email or not firstname or not lastname:
-        flash('Email, First Mame, and Last Name are required.', 'error')
+        flash('Email, First Name, and Last Name are required.', 'error')
         return redirect(url_for('users.account_settings'))
-    #check for existing user 
+    
     if email != current_user.email and User.email_exists(email):
         flash('This email already has an existing account.', 'error')
         return redirect(url_for('users.account_settings'))
-    
-    # if User.email_exists(email, exclude_user_id = current_user.id):
-    #     flash('This email already has an existing account.', 'error')
-    #     return redirect(url_for('users.account_settings'))
 
-    #basic profile breakdown for updating
     good = User.update_profile(
-        user_id = current_user.id,
-        email = email,
-        firstname = firstname,
-        lastname = lastname,
-        address = address
+        user_id=current_user.id,
+        email=email,
+        firstname=firstname,
+        lastname=lastname,
+        address=address
     )
 
     if not good:
         flash('ERROR: Updating profile failed. Please try again', 'error')
     else:
-        flash('SUCCESS: successfully updated the profile', 'success')
+        flash('SUCCESS: Successfully updated the profile', 'success')
 
     return redirect(url_for('users.account_settings'))
 
-"password updates"
+
 @bp.route('/settings/password', methods=['POST'])
 @login_required
 def update_password():
@@ -136,17 +127,14 @@ def update_password():
     new_pw = request.form.get('new_password', '')
     confirm_pw = request.form.get('confirm_password', '')
 
-    #check for current password
     if not current_user.check_password(current_pw):
         flash('Incorrect current password', 'error')
         return redirect(url_for('users.account_settings'))
     
-    #validating new password: 6 characters, confirmaation of pw --> can't update
     if not new_pw or len(new_pw) < 6:
         flash('New password needs to be at least 6 characters', 'error')
         return redirect(url_for('users.account_settings'))
 
-    #confirming password
     if new_pw != confirm_pw:
         flash('Passwords do not match', 'error')
         return redirect(url_for('users.account_settings'))
@@ -159,11 +147,10 @@ def update_password():
 
     return redirect(url_for('users.account_settings'))
 
-#balance updates
+
 @bp.route('/settings/balance', methods=['POST'])
 @login_required
 def update_balance():
-    #deposits and withdraws
     try:
         amount = float(request.form.get('amount', '0'))
     except ValueError:
@@ -179,14 +166,13 @@ def update_balance():
 
     if action == 'withdraw':
         if amount > current_balance:
-            flash("Insufficient balance, can not withdraw this amount", "error")
+            flash("Insufficient balance, cannot withdraw this amount", "error")
             return redirect(url_for('users.account_settings'))
         amount_changed = -amount
-
     elif action == 'deposit':
         amount_changed = amount
     else:
-        flash('Invalid action', 'errpr')
+        flash('Invalid action', 'error')
         return redirect(url_for('users.account_settings'))
     
     good = User.update_balance(current_user.id, amount_changed)
@@ -198,21 +184,9 @@ def update_balance():
     return redirect(url_for('users.account_settings'))
 
 
-#user purchases
-# @bp.route('/user_purchases')
-# @login_required
-# def user_purchases_page():
-#     """Serve the user purchases page"""
-#     purchases = Purchase.history_for_user(current_user.id)
-#     return render_template('user_purchases.html')
 @bp.route('/user_purchases')
 @login_required
 def user_purchases_page():
-    """Show the logged-in user's purchase history with filtering."""
-    print(f"=== DEBUG: user_purchases_page ===")
-    print(f"current_user.id = {current_user.id}")
-    print(f"current_user.email = {current_user.email}")
-    
     """Show the logged-in user's purchase history with filtering."""
     # Get filter parameters
     sort_by = request.args.get('sort_by', 'date')
@@ -221,8 +195,9 @@ def user_purchases_page():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     status_filter = request.args.get('status', 'all')
+    seller_filter = request.args.get('seller', '')  # ADD THIS LINE
     
-    # Get purchase history
+    # Get purchase history - now include seller_filter
     purchases = Purchase.history_for_user(
         current_user.id,
         sort_by=sort_by,
@@ -230,34 +205,33 @@ def user_purchases_page():
         search_term=search_term,
         date_from=date_from,
         date_to=date_to,
-        status_filter=status_filter
+        status_filter=status_filter,
+        seller_filter=seller_filter  # ADD THIS LINE
     )
     
-    # Get summary stats
     summary = Purchase.get_purchase_summary(current_user.id)
+    
+    # Get list of sellers user has purchased from for dropdown
+    sellers = get_user_sellers(current_user.id)
     
     return render_template('user_purchases.html', 
                          purchases=purchases,
                          summary=summary,
+                         sellers=sellers,
                          sort_by=sort_by,
                          sort_order=sort_order,
                          search_term=search_term,
                          date_from=date_from,
                          date_to=date_to,
-                         status_filter=status_filter)
+                         status_filter=status_filter,
+                         seller_filter=seller_filter)
+
 
 @bp.route('/order/<int:order_id>')
 @login_required
 def order_details(order_id):
     """Show detailed order page."""
-    print(f"=== DEBUG order_details ===")
-    print(f"current_user.id = {current_user.id}")
-    print(f"current_user.email = {current_user.email}")
-    print(f"order_id requested = {order_id}")
-    
     order_info = Purchase.get_order_details(order_id, current_user.id)
-    
-    print(f"order_info returned = {order_info}")
     
     if not order_info:
         flash('Order not found or you do not have permission to view it.', 'error')
@@ -265,9 +239,138 @@ def order_details(order_id):
     
     return render_template('order_details.html', order=order_info)
 
+
+# ============================================================================
+# PUBLIC PROFILE HELPER FUNCTIONS
+# ============================================================================
+
+def get_seller_statistics(seller_id):
+    """Get statistics for a seller - gracefully handles missing tables"""
+    try:
+        # Get total products
+        product_count = app.db.execute('''
+            SELECT COUNT(*) FROM products WHERE creator_id = :seller_id
+        ''', seller_id=seller_id)[0][0]
+        
+        # Get total sales
+        sales_data = app.db.execute('''
+            SELECT COUNT(DISTINCT o.id) as order_count,
+                   COALESCE(SUM(oi.quantity), 0) as items_sold,
+                   COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue
+            FROM orders o
+            JOIN orderitems oi ON o.id = oi.order_id
+            JOIN products p ON oi.product_id = p.id
+            WHERE p.creator_id = :seller_id
+            AND oi.fulfillment_status = 'fulfilled'
+        ''', seller_id=seller_id)
+        
+        # Try to get reviews (gracefully fail if table doesn't exist)
+        try:
+            rating_data = app.db.execute('''
+                SELECT AVG(r.rating) as avg_rating, COUNT(*) as review_count
+                FROM reviews r
+                JOIN products p ON r.product_id = p.id
+                WHERE p.creator_id = :seller_id
+            ''', seller_id=seller_id)
+            avg_rating = float(rating_data[0][0]) if rating_data and rating_data[0][0] else 0.0
+            review_count = rating_data[0][1] if rating_data else 0
+        except:
+            avg_rating = 0.0
+            review_count = 0
+        
+        # Get fulfillment rate
+        fulfillment_data = app.db.execute('''
+            SELECT 
+                COUNT(*) as total_orders,
+                COUNT(CASE WHEN oi.fulfillment_status = 'fulfilled' THEN 1 END) as fulfilled
+            FROM orderitems oi
+            JOIN products p ON oi.product_id = p.id
+            WHERE p.creator_id = :seller_id
+        ''', seller_id=seller_id)
+        
+        return {
+            'product_count': product_count,
+            'order_count': sales_data[0][0] if sales_data else 0,
+            'items_sold': sales_data[0][1] if sales_data else 0,
+            'total_revenue': float(sales_data[0][2]) if sales_data else 0.0,
+            'avg_rating': avg_rating,
+            'review_count': review_count,
+            'fulfillment_rate': (fulfillment_data[0][1] / fulfillment_data[0][0] * 100) if fulfillment_data and fulfillment_data[0][0] > 0 else 0
+        }
+    except Exception as e:
+        print(f"Error getting seller statistics: {e}")
+        return None
+
+
+def get_seller_reviews(seller_id):
+    """Get reviews for a seller - returns empty list if reviews table doesn't exist"""
+    try:
+        rows = app.db.execute('''
+            SELECT 
+                r.review_id,
+                r.rating,
+                r.comment,
+                r.date_reviewed,
+                u.id AS reviewer_id,
+                u.firstname,
+                u.lastname,
+                p.id AS product_id,
+                p.name AS product_name
+            FROM Reviews r
+            JOIN Products p ON r.product_id = p.id
+            JOIN Users u ON r.user_id = u.id
+            WHERE p.creator_id = :seller_id
+            ORDER BY r.date_reviewed DESC
+        ''', seller_id=seller_id)
+
+        reviews = []
+        for row in rows:
+            reviews.append({
+                'id': row[0],
+                'rating': row[1],
+                'review_text': row[2],
+                'created_at': row[3],
+                'reviewer_id': row[4],
+                'reviewer_name': f"{row[5]} {row[6][0]}." if row[6] else row[5],
+                'product_id': row[7],
+                'product_name': row[8],
+            })
+        return reviews
+
+    except Exception as e:
+        print(f"Reviews table not available or error: {e}")
+        return []
+
+
+
+def get_user_sellers(user_id):
+    """Get list of sellers that this user has purchased from"""
+    try:
+        rows = app.db.execute('''
+            SELECT DISTINCT p.creator_id, u.firstname, u.lastname
+            FROM orders o
+            JOIN orderitems oi ON o.id = oi.order_id
+            JOIN products p ON oi.product_id = p.id
+            JOIN users u ON p.creator_id = u.id
+            WHERE o.user_id = :user_id
+            ORDER BY u.firstname, u.lastname
+        ''', user_id=user_id)
+        
+        sellers = []
+        for row in rows:
+            sellers.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}"
+            })
+        return sellers
+    except Exception as e:
+        print(f"Error getting user sellers: {e}")
+        return []
+
+
 @bp.route('/user/<int:user_id>')
 def public_profile(user_id):
-    """Public view of a user's profile"""
+    """Public view of a user's profile - shows account info, and for sellers: contact info and reviews"""
     # Get the user
     user = User.get(user_id)
     if not user:
@@ -277,273 +380,54 @@ def public_profile(user_id):
     # Check if user is a seller
     is_seller = User.is_seller(user_id)
     
+    buyer_summary = Purchase.get_purchase_summary(user_id)
+
+    # Initialize variables
+    seller_stats = None
+    reviews = []
+    
+    if is_seller:
+        # Get seller statistics (optional summary info)
+        seller_stats = get_seller_statistics(user_id)
+        
+        # Get seller reviews - this is the main requirement
+        reviews = get_seller_reviews(user_id)
+    
     return render_template('public_profile.html', 
                            user=user, 
-                           is_seller=is_seller)
+                           is_seller=is_seller,
+                           buyer_summary = buyer_summary,
+                           seller_stats=seller_stats,
+                           reviews=reviews)
+
 
 @bp.route('/users/search')
 def search_users():
-    """Simple user search (optional feature)"""
-    query = request.args.get('q', '')
-    users = []
-    
-    if query:
-        rows = app.db.execute('''
-            SELECT id, firstname, lastname, email
-            FROM Users 
-            WHERE firstname ILIKE :q OR lastname ILIKE :q OR email ILIKE :q
-            LIMIT 20
-        ''', q=f'%{query}%')
-        
-        for row in rows:
-            users.append({
-                'id': row[0],
-                'name': f"{row[1]} {row[2]}",
-                'email': row[3]
-            })
-    
-    return render_template('search_users.html', users=users, query=query)
+    """
+    Sellers directory page with optional search.
+    """
+    query = request.args.get('q', '').strip()
 
-#user purchases api 
-@bp.route('/api/user_purchases/<int:user_id>')
-def get_user_purchases(user_id):
-    """API endpoint to get user purchases with product details"""
-    import datetime
-    
-    if user_id == 1:
-        mock_purchases = [
-            {
-                'purchase_id': 1,
-                'user_id': user_id,
-                'product_id': 101,
-                'time_purchased': datetime.datetime.now().isoformat(),
-                'product_name': 'Wireless Bluetooth Headphones',
-                'product_price': 99.99,
-                'product_available': True
-            },
-            {
-                'purchase_id': 2,
-                'user_id': user_id,
-                'product_id': 102,
-                'time_purchased': (datetime.datetime.now() - datetime.timedelta(days=2)).isoformat(),
-                'product_name': 'Laptop Stand',
-                'product_price': 49.99,
-                'product_available': True
-            }
-        ]
-    elif user_id == 2:
-        mock_purchases = [
-            {
-                'purchase_id': 3,
-                'user_id': user_id,
-                'product_id': 103,
-                'time_purchased': (datetime.datetime.now() - datetime.timedelta(days=1)).isoformat(),
-                'product_name': 'Mechanical Keyboard',
-                'product_price': 129.99,
-                'product_available': False
-            }
-        ]
-    else:
-        mock_purchases = [
-            {
-                'purchase_id': 4,
-                'user_id': user_id,
-                'product_id': 104,
-                'time_purchased': (datetime.datetime.now() - datetime.timedelta(days=5)).isoformat(),
-                'product_name': 'USB-C Hub',
-                'product_price': 39.99,
-                'product_available': True
-            }
-        ]
-    
-    return jsonify({
-        'success': True,
-        'user_id': user_id,
-        'purchases': mock_purchases
-    })
+    sellers = User.get_sellers(query=query)
+    all_sellers = User.get_sellers()
+    total_sellers = len(all_sellers)
 
-#logging out
+    is_current_seller = False
+    if current_user.is_authenticated:
+        is_current_seller = User.is_seller(current_user.id)
+
+    return render_template(
+        'search_users.html',
+        sellers=sellers,
+        total_sellers=total_sellers,
+        query=query,
+        is_current_seller=is_current_seller,
+    )
+
+
+
+
 @bp.route('/logout')
 def logout():
     logout_user()
     return redirect(url_for('index.index'))
-
-# Add these debug routes to app/users.py (not the model file!)
-
-@bp.route('/debug/orders')
-@login_required
-def debug_orders():
-    """Debug route to see what orders exist"""
-    user_id = current_user.id
-    
-    # Check orders directly
-    orders = app.db.execute('''
-        SELECT id, order_date, status, total_amount, user_id
-        FROM orders
-        WHERE user_id = :user_id
-        ORDER BY order_date DESC
-    ''', user_id=user_id)
-    
-    # Check order items
-    order_items = []
-    if orders:
-        for order in orders:
-            items = app.db.execute('''
-                SELECT oi.product_id, p.name, oi.price, oi.quantity
-                FROM orderitems oi
-                JOIN products p ON oi.product_id = p.id
-                WHERE oi.order_id = :order_id
-            ''', order_id=order[0])
-            order_items.append({
-                'order_id': order[0],
-                'items': items
-            })
-    
-    html = f"""
-    <h3>Debug Orders for User {user_id}</h3>
-    <h4>Found {len(orders)} orders:</h4>
-    <table border="1">
-        <tr>
-            <th>Order ID</th>
-            <th>Date</th>
-            <th>Status</th>
-            <th>Total</th>
-        </tr>
-    """
-    
-    for order in orders:
-        html += f"""
-        <tr>
-            <td>{order[0]}</td>
-            <td>{order[1]}</td>
-            <td>{order[2]}</td>
-            <td>${order[3] if order[3] else '0.00'}</td>
-        </tr>
-        """
-    
-    html += "</table>"
-    
-    html += "<h4>Order Items:</h4>"
-    for order_info in order_items:
-        html += f"<h5>Order {order_info['order_id']}:</h5>"
-        if order_info['items']:
-            html += "<ul>"
-            for item in order_info['items']:
-                html += f"<li>Product {item[0]} ({item[1]}): {item[3]} @ ${item[2]}</li>"
-            html += "</ul>"
-        else:
-            html += "<p>No items found</p>"
-    
-    return html
-
-@bp.route('/debug/db')
-def debug_db():
-    """Test database connections"""
-    results = []
-    
-    # Test 1: Check Users table
-    try:
-        users = app.db.execute("SELECT COUNT(*) FROM users")
-        results.append(f"Users table: {users[0][0]} rows")
-    except Exception as e:
-        results.append(f"Users table ERROR: {e}")
-    
-    # Test 2: Check Orders table
-    try:
-        orders = app.db.execute("SELECT COUNT(*) FROM orders")
-        results.append(f"Orders table: {orders[0][0]} rows")
-        
-        # Show some sample orders
-        sample_orders = app.db.execute("SELECT id, user_id, order_date, status FROM orders LIMIT 5")
-        results.append(f"Sample orders: {sample_orders}")
-    except Exception as e:
-        results.append(f"Orders table ERROR: {e}")
-    
-    # Test 3: Check OrderItems table
-    try:
-        orderitems = app.db.execute("SELECT COUNT(*) FROM orderitems")
-        results.append(f"OrderItems table: {orderitems[0][0]} rows")
-    except Exception as e:
-        results.append(f"OrderItems table ERROR: {e}")
-    
-    # Test 4: Check Products table
-    try:
-        products = app.db.execute("SELECT COUNT(*) FROM products")
-        results.append(f"Products table: {products[0][0]} rows")
-    except Exception as e:
-        results.append(f"Products table ERROR: {e}")
-    
-    return "<br>".join(results)
-
-@bp.route('/debug/cart')
-@login_required
-def debug_cart():
-    """Debug cart issues"""
-    user_id = current_user.id
-    
-    # Check user balance
-    balance = User.get_balance(user_id)
-    
-    # Check cart items
-    cart_items = app.db.execute('''
-        SELECT ci.product_id, ci.quantity, p.name, p.price, p.available
-        FROM cartitems ci
-        JOIN products p ON ci.product_id = p.id
-        WHERE ci.user_id = :user_id
-    ''', user_id=user_id)
-    
-    # Check inventory if it exists
-    try:
-        inventory = app.db.execute('''
-            SELECT product_id, quantity 
-            FROM inventory 
-            WHERE seller_id = :user_id
-        ''', user_id=user_id)
-    except:
-        inventory = []
-    
-    return f"""
-    <h3>Debug Info for User {user_id}</h3>
-    <p>Balance: ${balance}</p>
-    
-    <h4>Cart Items ({len(cart_items)})</h4>
-    <ul>
-    {"".join([f'<li>{item[2]}: {item[1]} @ ${item[3]} (available: {item[4]})</li>' for item in cart_items])}
-    </ul>
-    
-    <h4>Inventory ({len(inventory)})</h4>
-    <ul>
-    {"".join([f'<li>Product {item[0]}: {item[1]} in stock</li>' for item in inventory])}
-    </ul>
-    """
-@bp.route('/debug/user-issue')
-@login_required
-def debug_user_issue():
-    from flask import session
-    import json
-    
-    debug_info = {
-        'current_user.id': current_user.id,
-        'current_user.email': current_user.email,
-        'current_user.is_authenticated': current_user.is_authenticated,
-        'session_keys': list(session.keys()),
-        'session_user_id': session.get('user_id'),
-        'session__user_id': session.get('_user_id'),
-        'session_content': dict(session)
-    }
-    
-    # Also test loading user directly
-    if '_user_id' in session:
-        test_user = User.get(session['_user_id'])
-        debug_info['User.get(session_user_id)'] = test_user.id if test_user else 'None'
-    
-    return f"""
-    <h3>Debug User Issue</h3>
-    <pre>{json.dumps(debug_info, indent=2, default=str)}</pre>
-    
-    <h4>Test User Loading</h4>
-    <form method="get" action="/debug/user-issue">
-        <input type="number" name="test_id" placeholder="Enter user ID to test" value="1">
-        <button type="submit">Test User.get()</button>
-    </form>
-    """

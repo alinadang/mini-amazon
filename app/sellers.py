@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app, render_template, redirect, url_for
 from flask_login import current_user, login_required
+from .users import get_seller_statistics  # below the other imports
 
 sellers_bp = Blueprint('sellers', __name__)
 
@@ -66,13 +67,28 @@ def sellers_list():
 @sellers_bp.route('/sellers/<int:seller_id>')
 def seller_profile(seller_id):
     db = current_app.db
-    row = list(db.execute("SELECT id, email, firstname, lastname FROM Users WHERE id = :id", id=seller_id))
+    row = list(db.execute(
+        "SELECT id, email, firstname, lastname FROM Users WHERE id = :id",
+        id=seller_id
+    ))
     if not row:
         return "Seller not found", 404
+
     u = row[0]
-    seller = {'id': u[0], 'email': u[1], 'firstname': u[2], 'lastname': u[3]}
-    # The template will fetch inventory via the /api/seller_inventory endpoint
-    return render_template('seller_profile.html', seller=seller)
+    seller = {
+        'id': u[0],
+        'email': u[1],
+        'firstname': u[2],
+        'lastname': u[3]
+    }
+
+    # Get seller summary stats (products, orders, revenue, etc.)
+    seller_stats = get_seller_statistics(seller_id)
+
+    # Template still fetches inventory via /api/seller_inventory
+    return render_template('seller_profile.html',
+                           seller=seller,
+                           seller_stats=seller_stats)
 
 
 @sellers_bp.route('/seller')

@@ -33,13 +33,15 @@ class Purchase:
 
     @staticmethod
     def history_for_user(uid, sort_by='date', sort_order='desc', 
-                        search_term=None, date_from=None, date_to=None, status_filter=None):
+                        search_term=None, date_from=None, date_to=None, 
+                        status_filter=None, seller_filter=None):
         """ Return purchase history for a user with filtering and sorting.
         """
         print(f"=== DEBUG in history_for_user ===")
         print(f"uid parameter received = {uid}")
         print(f"uid type = {type(uid)}")
-        # Base query - adjust column names based on your actual schema
+        
+        # Base query
         query = '''
             SELECT
                 o.id              AS order_id,
@@ -81,6 +83,11 @@ class Purchase:
             conditions.append('o.order_date <= :date_to')
             params['date_to'] = date_to
         
+        # Add seller filter
+        if seller_filter:
+            conditions.append('p.creator_id = :seller_id')
+            params['seller_id'] = int(seller_filter)
+        
         # Apply conditions
         if conditions:
             query += ' AND ' + ' AND '.join(conditions)
@@ -91,7 +98,8 @@ class Purchase:
             'amount': 'o.total_amount',
             'name': 'p.name',
             'status': 'oi.fulfillment_status',
-            'quantity': 'oi.quantity'
+            'quantity': 'oi.quantity',
+            'seller': 'u.firstname'
         }
         
         sort_col = sort_map.get(sort_by, 'o.order_date')
@@ -107,15 +115,13 @@ class Purchase:
         except Exception as e:
             print(f"ERROR in purchase history query: {e}")
             print(f"ERROR: Query was: {query}")
-            # Return empty list to avoid breaking the page
             return []
         
-        # Convert rows into dicts for easier template use
+        # Convert rows into dicts
         history = []
         for r in rows:
-            # Calculate item total
             try:
-                item_total = float(r[4]) * int(r[5])  # price * quantity
+                item_total = float(r[4]) * int(r[5])
             except (TypeError, IndexError):
                 item_total = 0.0
             

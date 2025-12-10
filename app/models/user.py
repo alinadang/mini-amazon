@@ -228,3 +228,74 @@ WHERE id = :user_id
                 'email': row[3]
             })
         return users
+    @staticmethod
+    def get_all_users(limit=None):
+        """Return all users (optionally limited)"""
+        if limit:
+            rows = app.db.execute("""
+                SELECT id, firstname, lastname, email
+                FROM Users
+                ORDER BY id
+                LIMIT :limit
+            """, limit=limit)
+        else:
+            rows = app.db.execute("""
+                SELECT id, firstname, lastname, email
+                FROM Users
+                ORDER BY id
+            """)
+        
+        users = []
+        for row in rows:
+            users.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}",
+                'email': row[3]
+            })
+        return users
+    @staticmethod
+    def get_sellers(query=None, limit=None):
+        """
+        Return sellers (users who have products / inventory),
+        optionally filtered by a search query.
+        """
+        base_sql = """
+            SELECT u.id,
+                   u.firstname,
+                   u.lastname,
+                   u.email,
+                   COUNT(DISTINCT p.id) AS items_listed
+            FROM Users u
+            JOIN Products p ON p.creator_id = u.id
+        """
+        params = {}
+
+        if query:
+            base_sql += """
+                WHERE (u.firstname ILIKE :q OR u.lastname ILIKE :q OR u.email ILIKE :q)
+            """
+            params['q'] = f"%{query}%"
+
+        base_sql += """
+            GROUP BY u.id, u.firstname, u.lastname, u.email
+            ORDER BY u.id
+        """
+
+        if limit:
+            base_sql += " LIMIT :limit"
+            params['limit'] = limit
+
+        rows = app.db.execute(base_sql, **params)
+
+        sellers = []
+        for row in rows:
+            sellers.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}",
+                'email': row[3],
+                'items_listed': row[4],
+            })
+        return sellers
+
+
+    

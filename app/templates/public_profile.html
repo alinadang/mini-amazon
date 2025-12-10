@@ -1,69 +1,201 @@
-<!-- templates/public_profile.html -->
 {% extends "base.html" %}
 
 {% block content %}
 <div class="container mt-4">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-header">
-                    <h3>Public Profile</h3>
-                </div>
-                <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-4 font-weight-bold">Account ID:</div>
-                        <div class="col-md-8">{{ user.id }}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4 font-weight-bold">Name:</div>
-                        <div class="col-md-8">{{ user.firstname }} {{ user.lastname }}</div>
-                    </div>
-                    
-                    {% if is_seller %}
-                    <div class="row mb-3">
-                        <div class="col-md-4 font-weight-bold">Email:</div>
-                        <div class="col-md-8">{{ user.email }}</div>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-4 font-weight-bold">Address:</div>
-                        <div class="col-md-8">{{ user.address if user.address else 'Not provided' }}</div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <h4>Seller Reviews</h4>
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        Reviews feature is coming soon. Working with Social Guru to implement reviews database.
-                    </div>
-                    <!-- Reviews will go here once implemented -->
-                    
-                    {% else %}
-                    <div class="alert alert-secondary">
-                        <i class="fas fa-user"></i>
-                        This user is not registered as a seller.
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Optional: Show some public stats if available -->
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <small class="text-muted">Member since: Soon!</small>
-                        </div>
-                        {% if current_user.is_authenticated and current_user.id != user.id %}
-                        <div class="col-md-6 text-right">
-                            <a href="{{ url_for('users.account_settings') }}" class="btn btn-outline-primary btn-sm">
-                                View My Profile
-                            </a>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
+
+  <!-- Header / Basic Info -->
+  <div class="card mb-4">
+    <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+      <div>
+        <h3 class="mb-1">
+          {{ user.firstname }} {{ user.lastname }}
+          {% if is_seller %}
+            <span class="badge bg-success ms-2">Seller</span>
+          {% endif %}
+        </h3>
+        <p class="mb-1 text-muted">
+          Account #{{ user.id }}
+        </p>
+        {% if is_seller %}
+          <p class="mb-0">
+            <strong>Email:</strong> {{ user.email }}<br>
+            {% if user.address %}
+              <strong>Address:</strong> {{ user.address }}
+            {% endif %}
+          </p>
+        {% endif %}
+      </div>
+
+      <div class="mt-3 mt-md-0">
+        <a href="{{ url_for('users.search_users') }}" class="btn btn-outline-secondary">
+          ← Back to Sellers
+        </a>
+      </div>
     </div>
+  </div>
+
+  <!-- Buyer Summary (as a customer) -->
+  {% if buyer_summary %}
+  <div class="mb-4">
+    <h5>Purchase Summary</h5>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Total Orders</div>
+            <div class="h4 mb-0">{{ buyer_summary.total_orders }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Total Items</div>
+            <div class="h4 mb-0">{{ buyer_summary.total_items }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Total Spent</div>
+            <div class="h4 mb-0">
+              ${{ "%.2f"|format(buyer_summary.total_spent) }}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Fulfillment Rate</div>
+            <div class="h4 mb-0">
+              {% if buyer_summary.total_orders > 0 %}
+                {{ ((buyer_summary.fulfilled_orders / buyer_summary.total_orders) * 100)|int }}%
+              {% else %}
+                0%
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if is_seller %}
+  <!-- Seller Summary -->
+  {% if seller_stats %}
+  <div class="mb-4">
+    <h5>Seller Summary</h5>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Products Listed</div>
+            <div class="h4 mb-0">{{ seller_stats.product_count }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Orders Received</div>
+            <div class="h4 mb-0">{{ seller_stats.order_count }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Items Sold</div>
+            <div class="h4 mb-0">{{ seller_stats.items_sold }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Total Revenue</div>
+            <div class="h4 mb-0">${{ "%.2f"|format(seller_stats.total_revenue) }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mt-2">
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Avg Rating</div>
+            <div class="h4 mb-0">
+              {% if seller_stats.review_count > 0 %}
+                {{ "%.1f"|format(seller_stats.avg_rating) }} / 5
+              {% else %}
+                N/A
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small"># of Reviews</div>
+            <div class="h4 mb-0">{{ seller_stats.review_count }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="card text-center bg-light">
+          <div class="card-body">
+            <div class="text-muted small">Fulfillment Rate</div>
+            <div class="h4 mb-0">
+              {{ seller_stats.fulfillment_rate|round(0)|int }}%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Reviews Section -->
+  <div class="mb-4">
+    <h5>Reviews for this Seller</h5>
+    {% if reviews and reviews|length > 0 %}
+      <div class="list-group">
+        {% for r in reviews %}
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <div>
+              <strong>{{ r.product_name }}</strong>
+              <span class="text-muted small">(#{{ r.product_id }})</span>
+            </div>
+            <div>
+              <span class="badge bg-warning text-dark">
+                ★ {{ r.rating }}/5
+              </span>
+            </div>
+          </div>
+          <p class="mb-1">{{ r.review_text }}</p>
+          <div class="text-muted small">
+            By 
+            <a href="{{ url_for('users.public_profile', user_id=r.reviewer_id) }}">
+              {{ r.reviewer_name }}
+            </a>
+            on {{ r.created_at.strftime('%Y-%m-%d') }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="alert alert-secondary">
+        This seller has no reviews yet.
+      </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}

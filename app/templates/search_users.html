@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <!-- Breadcrumb / Header similar to Sellers page -->
+  <div class="mb-3">
+    <span class="text-muted">Home / Sellers</span>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div class="d-flex align-items-center">
+      <h2 class="mb-0 me-2">Sellers</h2>
+      <span class="badge bg-info text-dark">
+        {{ total_sellers }} total
+      </span>
+    </div>
+  
+    {% if current_user.is_authenticated and is_current_seller %}
+      <a href="{{ url_for('sellers.my_seller_dashboard') }}" class="btn btn-primary">
+        Go to my seller dashboard
+      </a>
+    {% endif %}
+  </div>
+  
+
+  <p class="text-muted mb-4">
+    Discover all sellers on JATAZon and open their profiles to explore inventory and prices.
+  </p>
+
+  <!-- Search bar (from the User Directory page) -->
+  <form method="get" class="row g-3 mb-3">
+    <div class="col-md-6">
+      <input type="text" name="q" class="form-control"
+             placeholder="Search by name or email"
+             value="{{ query if query else '' }}">
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary w-100">Search</button>
+    </div>
+  </form>
+
+  <!-- Sellers table -->
+  <table class="table table-hover">
+    <thead class="table-light">
+      <tr>
+        <th>Seller</th>
+        <th>Email</th>
+        <th>Items listed</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if sellers and sellers|length > 0 %}
+        {% for s in sellers %}
+        <tr>
+          <td>
+            {{ s.name }}<br>
+            <span class="text-muted small">ID {{ s.id }}</span>
+          </td>
+          <td>{{ s.email }}</td>
+          <td>{{ s.items_listed }}</td>
+          <td>
+            <a href="{{ url_for('users.public_profile', user_id=s.id) }}"
+               class="btn btn-sm btn-outline-primary">
+              View profile
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">
+            No sellers found.
+          </td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <p class="text-muted small mt-2">
+    Tip: use your seller dashboard to manage inventory, prices, and availability.
+  </p>
+</div>
+{% endblock %}

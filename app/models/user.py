@@ -85,34 +85,43 @@ RETURNING id
     @staticmethod
     @login.user_loader
     def get(id):
+        """Load user by ID for Flask-Login"""
+        print(f"=== User.get() called with id={id}, type={type(id)} ===")
+        
+        # Handle None/empty ID
+        if id is None:
+            print("ERROR: User.get() received None")
+            return None
+        
+        # Convert to int since Flask-Login might pass string
         try:
-            # Convert to int since Flask-Login passes string
             user_id = int(id)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            print(f"ERROR: Could not convert id to int: {id}, error: {e}")
             return None
         
-        rows = app.db.execute("""
-    SELECT id, email, firstname, lastname, address, balance
-    FROM Users
-    WHERE id = :id
-    """,
-                            id=user_id)  
-        if not rows:
-            print(f"ERROR: User.get() found no user with ID: {user_id}")
+        # Query database
+        try:
+            rows = app.db.execute("""
+                SELECT id, email, firstname, lastname, address, balance
+                FROM Users
+                WHERE id = :id
+            """, id=user_id)
+            
+            if not rows:
+                print(f"ERROR: User.get() found no user with ID: {user_id}")
+                return None
+            
+            user = User(*(rows[0]))
+            print(f"SUCCESS: User.get() loaded user: {user.email} (ID: {user.id})")
+            return user
+            
+        except Exception as e:
+            print(f"ERROR: Database error in User.get(): {e}")
+            import traceback
+            traceback.print_exc()
             return None
         
-        print(f"DEBUG: User.get() found user: {rows[0][1]} with ID: {rows[0][0]}")
-        return User(*(rows[0])) if rows else None
-#     @login.user_loader
-#     def get(id):
-#         rows = app.db.execute("""
-# SELECT id, email, firstname, lastname, address, balance
-# FROM Users
-# WHERE id = :id
-# """,
-#                               id=id)
-#         return User(*(rows[0])) if rows else None
-
     @staticmethod
     def update_profile(user_id, email, firstname, lastname, address):
         """Update user profile information (not password)"""
@@ -219,3 +228,74 @@ WHERE id = :user_id
                 'email': row[3]
             })
         return users
+    @staticmethod
+    def get_all_users(limit=None):
+        """Return all users (optionally limited)"""
+        if limit:
+            rows = app.db.execute("""
+                SELECT id, firstname, lastname, email
+                FROM Users
+                ORDER BY id
+                LIMIT :limit
+            """, limit=limit)
+        else:
+            rows = app.db.execute("""
+                SELECT id, firstname, lastname, email
+                FROM Users
+                ORDER BY id
+            """)
+        
+        users = []
+        for row in rows:
+            users.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}",
+                'email': row[3]
+            })
+        return users
+    @staticmethod
+    def get_sellers(query=None, limit=None):
+        """
+        Return sellers (users who have products / inventory),
+        optionally filtered by a search query.
+        """
+        base_sql = """
+            SELECT u.id,
+                   u.firstname,
+                   u.lastname,
+                   u.email,
+                   COUNT(DISTINCT p.id) AS items_listed
+            FROM Users u
+            JOIN Products p ON p.creator_id = u.id
+        """
+        params = {}
+
+        if query:
+            base_sql += """
+                WHERE (u.firstname ILIKE :q OR u.lastname ILIKE :q OR u.email ILIKE :q)
+            """
+            params['q'] = f"%{query}%"
+
+        base_sql += """
+            GROUP BY u.id, u.firstname, u.lastname, u.email
+            ORDER BY u.id
+        """
+
+        if limit:
+            base_sql += " LIMIT :limit"
+            params['limit'] = limit
+
+        rows = app.db.execute(base_sql, **params)
+
+        sellers = []
+        for row in rows:
+            sellers.append({
+                'id': row[0],
+                'name': f"{row[1]} {row[2]}",
+                'email': row[3],
+                'items_listed': row[4],
+            })
+        return sellers
+
+
+    

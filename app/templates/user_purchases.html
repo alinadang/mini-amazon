@@ -35,27 +35,46 @@
         </div>
         <div class="card-body">
             <form method="get" class="row g-3">
-                {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                {% if status_filter %}
+                    <input type="hidden" name="status" value="{{ status_filter }}">
+                {% endif %}
                 
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="search" class="form-label">Search Products</label>
                     <input type="text" class="form-control" id="search" name="search" 
                            value="{{ search_term if search_term else '' }}" placeholder="Product name...">
                 </div>
-                <div class="col-md-3">
+            
+                <div class="col-md-2">
                     <label for="date_from" class="form-label">Date From</label>
                     <input type="date" class="form-control" id="date_from" name="date_from" 
                            value="{{ date_from if date_from else '' }}">
                 </div>
-                <div class="col-md-3">
+            
+                <div class="col-md-2">
                     <label for="date_to" class="form-label">Date To</label>
                     <input type="date" class="form-control" id="date_to" name="date_to" 
                            value="{{ date_to if date_to else '' }}">
                 </div>
+            
+                <div class="col-md-3">
+                    <label for="seller" class="form-label">Seller</label>
+                    <select class="form-select" id="seller" name="seller">
+                        <option value="">All sellers</option>
+                        {% for s in sellers %}
+                            <option value="{{ s.id }}" 
+                                {% if seller_filter and seller_filter|string == s.id|string %}selected{% endif %}>
+                                {{ s.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
                 </div>
             </form>
+            
             
             <form method="get" class="row g-3 mt-2">
                 {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
@@ -155,17 +174,6 @@
             </thead>
             <tbody>
                 {% for p in purchases %}
-                <!-- DEBUG ROW - Add this temporarily -->
-                <tr style="background-color: #f0f0f0;">
-                    <td colspan="9">
-                        <small class="text-muted">
-                            DEBUG: order_id={{ p.order_id }} | 
-                            Generated URL: {{ url_for('users.order_details', order_id=p.order_id) }} |
-                            User ID in session: {{ current_user.id }}
-                        </small>
-                    </td>
-                </tr>
-                <!-- End DEBUG ROW -->
                 <tr>
                     <td>{{ p.time_purchased.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>

@@ -97,3 +97,12 @@ CREATE TABLE Reviews (
     comment VARCHAR(255) NOT NULL,
     date_reviewed TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 );
+
+CREATE TABLE IF NOT EXISTS SellerReviews (
+    id SERIAL PRIMARY KEY,
+    seller_id INTEGER REFERENCES Users(id),
+    user_id INTEGER REFERENCES Users(id),
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    date_reviewed TIMESTAMP DEFAULT NOW()
+);

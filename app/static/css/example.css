@@ -195,3 +195,55 @@ section {
   padding: 4px 8px;
   font-size: 0.85rem;
 }
+
+/* Seller orders card + rows */
+.seller-orders-card {
+  border-radius: 0.9rem;
+  border: none;
+  background: #ffffff;
+}
+
+.order-row {
+  padding: 12px 4px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.order-row:last-child {
+  border-bottom: none;
+}
+
+/* Line items */
+.line-item {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.line-item:last-child {
+  border-bottom: none;
+}
+.line-item.fulfilled {
+  background: #d4edda;
+}
+.line-item.pending {
+  background: #fff3cd;
+}
+
+/* Filter pill buttons */
+.btn-filter {
+  border-radius: 999px;
+  border: 1px solid #dee2e6;
+  background-color: #f8f9fa;
+  color: #495057;
+  padding: 4px 14px;
+}
+.btn-filter:hover {
+  background-color: #e9ecef;
+  color: #212529;
+}
+.btn-filter-active {
+  background: linear-gradient(135deg, #0d6efd, #20c997);
+  border-color: transparent;
+  color: #fff !important;
+}

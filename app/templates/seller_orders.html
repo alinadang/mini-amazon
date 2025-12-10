@@ -1,158 +1,228 @@
-<!doctype html>
-<html>
-<head>
- <meta charset="utf-8">
- <title>My Orders to Fulfill</title>
- <style>
-   body { font-family: system-ui; padding: 16px; max-width: 1200px; margin: 0 auto; }
-   .order-card { border: 1px solid #ddd; padding: 16px; margin: 16px 0; border-radius: 4px; }
-   .order-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
-   .line-item { padding: 8px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-   button { padding: 6px 12px; cursor: pointer; }
-   .fulfilled { background: #d4edda; }
-   .pending { background: #fff3cd; }
-   .filter-buttons { margin: 20px 0; }
-   .filter-buttons button { margin-right: 8px; }
- </style>
-</head>
-<body>
- <a href="{{ url_for('index.index') }}">← Home</a> |
- <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">My Seller Profile</a> | 
- <a href="{{ url_for('sellers.seller_analytics_page') }}">Analytics</a>
-  <h1>Orders to Fulfill</h1>
-  <div class="filter-buttons">
-   <strong>Filter:</strong>
-   <button onclick="loadOrders('all')">All Orders</button>
-   <button onclick="loadOrders('pending')">Pending Only</button>
-   <button onclick="loadOrders('fulfilled')">Fulfilled Only</button>
- </div>
-  <div id="orders-container">Loading orders...</div>
+{% extends "base.html" %}
+{% block content %}
 
+<div class="container py-4">
 
- <script>
-   function loadOrders(status = 'all') {
-     fetch(`/api/seller_orders?status=${status}`)
-       .then(r => r.json())
-       .then(orders => {
-         const container = document.getElementById('orders-container');
-         container.innerHTML = '';
-        
-         if (orders.length === 0) {
-           container.innerHTML = '<p>No orders found.</p>';
-           return;
-         }
-        
-         orders.forEach(order => {
-           const card = document.createElement('div');
-           card.className = 'order-card';
-           card.innerHTML = `
-             <div class="order-header">
-               <div>
-                 <strong>Order #${order.order_id}</strong><br>
-                 <small>${order.order_date}</small>
-               </div>
-               <div style="text-align: right;">
-                 <strong>${order.buyer_name}</strong><br>
-                 <small>${order.buyer_email}</small>
-               </div>
-             </div>
-             <div style="margin-bottom: 10px;">
-               Total: $${order.total_amount.toFixed(2)} |
-               Items: ${order.item_count} |
-               Status: ${order.status}
-             </div>
-             <button onclick="toggleOrderItems(${order.order_id}, this)">Show Items</button>
-             <div id="items-${order.order_id}" style="display:none; margin-top: 12px; border-top: 2px solid #ddd; padding-top: 12px;"></div>
-           `;
-           container.appendChild(card);
-         });
-       })
-       .catch(err => {
-         document.getElementById('orders-container').innerHTML = '<p>Error loading orders.</p>';
-         console.error(err);
-       });
-   }
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('index.index') }}">Home</a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">
+              My Seller Profile
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('sellers.seller_analytics_page') }}">
+              Analytics
+            </a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">Orders to fulfill</li>
+        </ol>
+      </nav>
+      <h1 class="h4 mb-0">Orders to fulfill</h1>
+      <p class="text-muted small mb-0">
+        Filter by status and expand each order to see line items you can mark as fulfilled.
+      </p>
+    </div>
+  </div>
 
+  <!-- Filter buttons (styled pills, JS-driven) -->
+  <div class="mb-3 d-flex align-items-center">
+    <span class="text-muted mr-2 small">Filter:</span>
+    <div class="btn-group btn-group-sm" role="group">
+      <button id="filter-all"
+              type="button"
+              class="btn btn-filter btn-filter-active"
+              onclick="setFilter('all')">
+        All orders
+      </button>
+      <button id="filter-pending"
+              type="button"
+              class="btn btn-filter"
+              onclick="setFilter('pending')">
+        Pending only
+      </button>
+      <button id="filter-fulfilled"
+              type="button"
+              class="btn btn-filter"
+              onclick="setFilter('fulfilled')">
+        Fulfilled only
+      </button>
+    </div>
+  </div>
 
-   function toggleOrderItems(orderId, btn) {
-     const itemsDiv = document.getElementById(`items-${orderId}`);
-    
-     if (itemsDiv.style.display === 'block') {
-       itemsDiv.style.display = 'none';
-       btn.textContent = 'Show Items';
-       return;
-     }
-    
-     fetch(`/api/order_items/${orderId}`)
-       .then(r => r.json())
-       .then(items => {
-         itemsDiv.innerHTML = '';
-        
-         if (items.length === 0) {
-           itemsDiv.innerHTML = '<p>No items found for this order.</p>';
-         }
-        
-         items.forEach(item => {
-           const div = document.createElement('div');
-           div.className = `line-item ${item.fulfillment_status}`;
-          
-           const leftSide = document.createElement('div');
-           leftSide.innerHTML = `
-             <strong>${item.name}</strong> (Product #${item.product_id})<br>
-             <small>Quantity: ${item.quantity} × $${item.price.toFixed(2)} = $${(item.quantity * item.price).toFixed(2)}</small><br>
-             <small>Status: <strong>${item.fulfillment_status}</strong></small>
-             ${item.fulfilled_date ? `<br><small>Fulfilled: ${item.fulfilled_date}</small>` : ''}
-           `;
-          
-           const rightSide = document.createElement('div');
-           if (item.fulfillment_status === 'pending') {
-             rightSide.innerHTML = `<button onclick="fulfillItem(${item.id})">Mark as Fulfilled</button>`;
-           } else {
-             rightSide.innerHTML = `<span style="color: green;">✓ Fulfilled</span>`;
-           }
-          
-           div.appendChild(leftSide);
-           div.appendChild(rightSide);
-           itemsDiv.appendChild(div);
-         });
-        
-         itemsDiv.style.display = 'block';
-         btn.textContent = 'Hide Items';
-       })
-       .catch(err => {
-         itemsDiv.innerHTML = '<p>Error loading items.</p>';
-         console.error(err);
-       });
-   }
+  <!-- Orders container -->
+  <div class="card shadow-sm seller-orders-card">
+    <div class="card-body" id="orders-container">
+      Loading orders...
+    </div>
+  </div>
 
+</div>
 
-   function fulfillItem(itemId) {
-     if (!confirm('Mark this item as fulfilled?')) return;
-    
-     fetch('/api/fulfill_item', {
-       method: 'POST',
-       headers: {'Content-Type': 'application/json'},
-       body: JSON.stringify({item_id: itemId})
-     })
-     .then(r => r.json())
-     .then(data => {
-       if (data.success) {
-         alert('Item marked as fulfilled!');
-         loadOrders('all'); // Reload to show updated status
-       } else {
-         alert('Error: ' + (data.error || 'Unknown error'));
-       }
-     })
-     .catch(err => {
-       alert('Error fulfilling item: ' + err);
-       console.error(err);
-     });
-   }
+<script>
+  // Highlight active filter button and load orders
+  function setFilter(status) {
+    document.getElementById('filter-all').classList.remove('btn-filter-active');
+    document.getElementById('filter-pending').classList.remove('btn-filter-active');
+    document.getElementById('filter-fulfilled').classList.remove('btn-filter-active');
 
+    if (status === 'all') {
+      document.getElementById('filter-all').classList.add('btn-filter-active');
+    } else if (status === 'pending') {
+      document.getElementById('filter-pending').classList.add('btn-filter-active');
+    } else if (status === 'fulfilled') {
+      document.getElementById('filter-fulfilled').classList.add('btn-filter-active');
+    }
 
-   // Load all orders on page load
-   loadOrders('all');
- </script>
-</body>
-</html>
+    loadOrders(status);
+  }
 
+  function loadOrders(status = 'all') {
+    fetch(`/api/seller_orders?status=${status}`)
+      .then(r => r.json())
+      .then(orders => {
+        const container = document.getElementById('orders-container');
+        container.innerHTML = '';
+
+        if (!orders || orders.length === 0) {
+          container.innerHTML = '<p class="text-muted mb-0">No orders found.</p>';
+          return;
+        }
+
+        orders.forEach(order => {
+          const card = document.createElement('div');
+          card.className = 'order-row';
+
+          card.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <div>
+                <div class="font-weight-semibold">
+                  Order #${order.order_id}
+                </div>
+                <div class="text-muted small">
+                  ${order.order_date}
+                </div>
+                <div class="text-muted small">
+                  Total: $${order.total_amount.toFixed(2)}
+                  • Items: ${order.item_count}
+                  • Status:
+                  ${order.status === 'fulfilled'
+                    ? '<span class="badge badge-success">fulfilled</span>'
+                    : '<span class="badge badge-warning text-dark">pending</span>'}
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="font-weight-semibold small mb-1">
+                  ${order.buyer_name}
+                </div>
+                <div class="text-muted small mb-2">
+                  ${order.buyer_email}
+                </div>
+                <button class="btn btn-sm btn-outline-primary"
+                        onclick="toggleOrderItems(${order.order_id}, this)">
+                  Show items
+                </button>
+              </div>
+            </div>
+            <div id="items-${order.order_id}"
+                 style="display:none; margin-top: 12px; border-top: 1px solid #e5e5e5; padding-top: 12px;"></div>
+          `;
+
+          container.appendChild(card);
+        });
+      })
+      .catch(err => {
+        document.getElementById('orders-container').innerHTML =
+          '<p class="text-danger mb-0">Error loading orders.</p>';
+        console.error(err);
+      });
+  }
+
+  function toggleOrderItems(orderId, btn) {
+    const itemsDiv = document.getElementById(`items-${orderId}`);
+
+    if (itemsDiv.style.display === 'block') {
+      itemsDiv.style.display = 'none';
+      btn.textContent = 'Show items';
+      return;
+    }
+
+    fetch(`/api/order_items/${orderId}`)
+      .then(r => r.json())
+      .then(items => {
+        itemsDiv.innerHTML = '';
+
+        if (!items || items.length === 0) {
+          itemsDiv.innerHTML = '<p class="text-muted mb-0">No items found for this order.</p>';
+        }
+
+        items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = `line-item ${item.fulfillment_status}`;
+
+          const leftSide = document.createElement('div');
+          leftSide.innerHTML = `
+            <strong>${item.name}</strong> (Product #${item.product_id})<br>
+            <small>Quantity: ${item.quantity} × $${item.price.toFixed(2)} =
+              $${(item.quantity * item.price).toFixed(2)}</small><br>
+            <small>Status: <strong>${item.fulfillment_status}</strong></small>
+            ${item.fulfilled_date ? `<br><small>Fulfilled: ${item.fulfilled_date}</small>` : ''}
+          `;
+
+          const rightSide = document.createElement('div');
+          if (item.fulfillment_status === 'pending') {
+            rightSide.innerHTML =
+              `<button class="btn btn-sm btn-success" onclick="fulfillItem(${item.id})">
+                 Mark as fulfilled
+               </button>`;
+          } else {
+            rightSide.innerHTML = `<span style="color: green;">✓ Fulfilled</span>`;
+          }
+
+          div.appendChild(leftSide);
+          div.appendChild(rightSide);
+          itemsDiv.appendChild(div);
+        });
+
+        itemsDiv.style.display = 'block';
+        btn.textContent = 'Hide items';
+      })
+      .catch(err => {
+        itemsDiv.innerHTML = '<p class="text-danger mb-0">Error loading items.</p>';
+        console.error(err);
+      });
+  }
+
+  function fulfillItem(itemId) {
+    if (!confirm('Mark this item as fulfilled?')) return;
+
+    fetch('/api/fulfill_item', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({item_id: itemId})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        alert('Item marked as fulfilled!');
+        setFilter('all'); // reload orders with current styling
+      } else {
+        alert('Error: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(err => {
+      alert('Error fulfilling item: ' + err);
+      console.error(err);
+    });
+  }
+
+  // Initial load
+  setFilter('all');
+</script>
+
+{% endblock %}

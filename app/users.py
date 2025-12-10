@@ -7,6 +7,7 @@ from wtforms.validators import ValidationError, DataRequired, Email, EqualTo, Le
 from .models.user import User
 from flask import jsonify
 from .models.purchase import Purchase
+from flask import render_template, redirect, url_for, flash, request, current_app as app
 
 
 from flask import Blueprint
@@ -208,6 +209,11 @@ def update_balance():
 @login_required
 def user_purchases_page():
     """Show the logged-in user's purchase history with filtering."""
+    print(f"=== DEBUG: user_purchases_page ===")
+    print(f"current_user.id = {current_user.id}")
+    print(f"current_user.email = {current_user.email}")
+    
+    """Show the logged-in user's purchase history with filtering."""
     # Get filter parameters
     sort_by = request.args.get('sort_by', 'date')
     sort_order = request.args.get('sort_order', 'desc')
@@ -244,7 +250,14 @@ def user_purchases_page():
 @login_required
 def order_details(order_id):
     """Show detailed order page."""
+    print(f"=== DEBUG order_details ===")
+    print(f"current_user.id = {current_user.id}")
+    print(f"current_user.email = {current_user.email}")
+    print(f"order_id requested = {order_id}")
+    
     order_info = Purchase.get_order_details(order_id, current_user.id)
+    
+    print(f"order_info returned = {order_info}")
     
     if not order_info:
         flash('Order not found or you do not have permission to view it.', 'error')
@@ -502,4 +515,35 @@ def debug_cart():
     <ul>
     {"".join([f'<li>Product {item[0]}: {item[1]} in stock</li>' for item in inventory])}
     </ul>
+    """
+@bp.route('/debug/user-issue')
+@login_required
+def debug_user_issue():
+    from flask import session
+    import json
+    
+    debug_info = {
+        'current_user.id': current_user.id,
+        'current_user.email': current_user.email,
+        'current_user.is_authenticated': current_user.is_authenticated,
+        'session_keys': list(session.keys()),
+        'session_user_id': session.get('user_id'),
+        'session__user_id': session.get('_user_id'),
+        'session_content': dict(session)
+    }
+    
+    # Also test loading user directly
+    if '_user_id' in session:
+        test_user = User.get(session['_user_id'])
+        debug_info['User.get(session_user_id)'] = test_user.id if test_user else 'None'
+    
+    return f"""
+    <h3>Debug User Issue</h3>
+    <pre>{json.dumps(debug_info, indent=2, default=str)}</pre>
+    
+    <h4>Test User Loading</h4>
+    <form method="get" action="/debug/user-issue">
+        <input type="number" name="test_id" placeholder="Enter user ID to test" value="1">
+        <button type="submit">Test User.get()</button>
+    </form>
     """

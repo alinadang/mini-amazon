@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <h1>Account Settings</h1>
-<a href="{{ url_for('users.user_purchases_page') }}" class="btn btn-info mb-3">
-    View Purchase History
-</a>
 
+<a href="{{ url_for('users.user_purchases_page') }}" class="btn btn-info mb-3">
+  View Purchase History
+</a>
 
 <!-- Flash Messages -->
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -17,8 +17,60 @@
   {% endif %}
 {% endwith %}
 
-<div class="row">
+{% if purchase_summary %}
+<div class="mb-4">
+  <h3>Spending Overview</h3>
+  <div class="row">
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Total spent</div>
+          <div class="h4 mb-0">
+            ${{ '%.2f'|format(purchase_summary.total_spent) }}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Total orders</div>
+          <div class="h4 mb-0">{{ purchase_summary.total_orders }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Items purchased</div>
+          <div class="h4 mb-0">{{ purchase_summary.total_items }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 mb-3">
+      <div class="card text-center bg-light">
+        <div class="card-body">
+          <div class="text-muted small">Pending orders</div>
+          <div class="h4 mb-0">{{ purchase_summary.pending_orders }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
+  {% if status_counts %}
+  <div class="mt-2">
+    <span class="text-muted small me-2">Order status breakdown:</span>
+    {% for status, count in status_counts.items() %}
+      <span class="badge bg-secondary me-1">
+        {{ status|capitalize }}: {{ count }}
+      </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row">
   <!-- Profile -->
   <div class="col-md-4">
     <h3>Profile</h3>
@@ -79,7 +131,64 @@
       </div>
     </form>
   </div>
+</div>
 
+<div class="row mt-4">
+  <!-- Spending by category -->
+  <div class="col-md-6 mb-4">
+    <h4>Spending by Category</h4>
+    {% if spending_by_category and spending_by_category|length > 0 %}
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th class="text-end">Total spent</th>
+            <th class="text-end"># Orders</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in spending_by_category %}
+          <tr>
+            <td>{{ row.category }}</td>
+            <td class="text-end">
+              ${{ '%.2f'|format(row.total_spent) }}
+            </td>
+            <td class="text-end">{{ row.num_orders }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-muted small mb-0">No purchases yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Recent spending timeline -->
+  <div class="col-md-6 mb-4">
+    <h4>Recent Spending (by day)</h4>
+    {% if spending_timeline and spending_timeline|length > 0 %}
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th class="text-end">Amount spent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for day in spending_timeline %}
+          <tr>
+            <td>{{ day.day }}</td>
+            <td class="text-end">
+              ${{ '%.2f'|format(day.total_spent) }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-muted small mb-0">No recent spending data.</p>
+    {% endif %}
+  </div>
 </div>
 
 {% endblock %}

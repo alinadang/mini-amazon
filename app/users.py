@@ -85,7 +85,22 @@ def register():
 def account_settings():
     user = User.get(current_user.id)
     balance = User.get_balance(current_user.id)
-    return render_template('account_settings.html', user=user, balance=balance)
+
+    # overall purchase stats for this user
+    purchase_summary = Purchase.get_purchase_summary(current_user.id)
+
+    # new: breakdowns for visualization
+    spending_by_category = Purchase.get_spending_by_category(current_user.id)
+    spending_timeline = Purchase.get_spending_timeline(current_user.id, limit=10)
+
+    return render_template(
+        'account_settings.html',
+        user=user,
+        balance=balance,
+        purchase_summary=purchase_summary,
+        spending_by_category=spending_by_category,
+        spending_timeline=spending_timeline,
+    )
 
 
 @bp.route('/settings/profile', methods=['POST'])

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>My Reviews</h2>
+
+  {% if items %}
+    {% for r in items %}
+      <div class="card mb-3" style="padding:12px;">
+        <h5>{{ r.product_name }} (Product ID: {{ r.product_id }})</h5>
+        <p><strong>Rating:</strong> {{ r.rating }}/5</p>
+        <p>{{ r.comment }}</p>
+        <div style="color: #777; font-size: 0.9em;">
+          {{ r.date_reviewed }}
+        </div>
+
+        <a href="{{ url_for('products_api.product_add_review', pid=r.product_id) }}"
+           class="btn btn-sm btn-outline-primary mt-2">
+          Edit Review
+        </a>
+
+        <form method="post"
+            action="{{ url_for('products_api.product_review_delete', pid=r.product_id) }}"
+            style="display:inline;">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                Delete
+            </button>
+        </form>
+
+
+      </div>
+    {% endfor %}
+  {% else %}
+    <p>You have not written any reviews yet.</p>
+  {% endif %}
+
+</div>
+{% endblock %}

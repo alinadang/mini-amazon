@@ -1,38 +1,63 @@
 {% extends "base.html" %}
-
 {% block content %}
 
-<h1>Login</h1>
+<div class="auth-wrapper">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-5">
+        <div class="card shadow-lg auth-card">
+          <div class="card-body p-4">
+            <h1 class="h3 mb-3 text-center font-weight-bold">Log in to JATAZon</h1>
+            <p class="text-muted text-center mb-4 small">
+              Access your cart, saved items, balances, and order history.
+            </p>
 
-<form action="" method="post" novalidate>
-  {{ form.hidden_tag() }}
-  <p>
-    {{ form.email.label }}<br/>
-    {{ form.email(size=32) }}<br/>
-    {% for error in form.email.errors %}
-    <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {{ form.password.label }}<br/>
-    {{ form.password(size=32) }}<br/>
-    {% for error in form.password.errors %}
-    <span style="color: red;">[{{ error }}]</span>
-    {% endfor %}
-  </p>
-  <p>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    <ul>
-      {% for message in messages %}
-      <li>{{ message }}</li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-    {% endwith %}
-  </p>
-  {{ form.submit(class_="btn btn-black") }}
-  <a class="btn btn-secondary" href="{{ url_for('users.register') }}" role="button">Register</a>
-</form>
+            <form action="" method="post" novalidate>
+              {{ form.hidden_tag() }}
+
+              <div class="form-group">
+                {{ form.email.label(class="form-label") }}
+                {{ form.email(class="form-control", size=32, placeholder="you@example.com") }}
+                {% for error in form.email.errors %}
+                  <small class="text-danger d-block">[{{ error }}]</small>
+                {% endfor %}
+              </div>
+
+              <div class="form-group">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control", size=32, placeholder="Password") }}
+                {% for error in form.password.errors %}
+                  <small class="text-danger d-block">[{{ error }}]</small>
+                {% endfor %}
+              </div>
+
+              {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <ul class="text-danger small">
+                  {% for message in messages %}
+                    <li>{{ message }}</li>
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {% endwith %}
+
+              <button type="submit" class="btn btn-primary btn-block mt-2">
+                Log in
+              </button>
+              <a class="btn btn-outline-secondary btn-block mt-2"
+                 href="{{ url_for('users.register') }}">
+                Create a new account
+              </a>
+            </form>
+          </div>
+        </div>
+
+        <p class="text-center text-muted small mt-3">
+          This site is for the CompSci 316 Mini Amazon project only.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% endblock %}

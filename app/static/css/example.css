@@ -1,23 +1,197 @@
+/* Optional old demo layout (not required for JATAZon, but kept if used elsewhere) */
 section {
-color: #fff;
-text-align: center;
+  color: #fff;
+  text-align: center;
 }
 
 .container {
-display: table;
-width: 100%;
+  display: table;
+  width: 100%;
 }
 
 .left-half {
-background-color: #ff9e2c;
-position: absolute;
-left: 0px;
-width: 50%;
+  background-color: #ff9e2c;
+  position: absolute;
+  left: 0px;
+  width: 50%;
 }
 
 .right-half {
-background-color: #b6701e;
-position: absolute;
-right: 0px;
-width: 50%;
+  background-color: #b6701e;
+  position: absolute;
+  right: 0px;
+  width: 50%;
+}
+
+/* Page background */
+.page-bg {
+  min-height: 100vh;
+  background: #f4f5f7;
+}
+
+/* Navbar */
+.navbar-black {
+  background-color: #000000 !important;
+}
+
+.page-bg {
+  min-height: 100vh;
+  background: #f4f5f7;
+}
+
+/* Landing hero */
+.landing-hero {
+  background: linear-gradient(135deg, #0d6efd 0%, #031633 60%);
+  color: #f8f9fa;
+}
+
+.landing-hero .hero-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+/* Product links */
+.product-link {
+  text-decoration: none;
+  color: #212529;
+  font-weight: 500;
+}
+.product-link:hover {
+  color: #0d6efd;
+}
+
+/* Auth layout */
+.auth-wrapper {
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+}
+
+.auth-card {
+  border: none;
+  border-radius: 0.75rem;
+}
+
+/* Tables */
+.table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Product thumbnail in home table */
+.product-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  background-color: #fff;
+}
+
+.product-cell-link {
+  text-decoration: none;
+}
+
+.product-cell-link:hover .product-thumb {
+  border-color: #0d6efd;
+}
+
+.seller-link {
+  font-weight: 500;
+  color: #212529;
+  text-decoration: none;
+}
+
+.seller-link:hover {
+  color: #0d6efd;
+  text-decoration: underline;
+}
+
+/* Sellers list page */
+.sellers-header {
+  border-left: 4px solid #0d6efd;
+  padding-left: 12px;
+}
+
+.sellers-header-title {
+  color: #0d6efd;
+}
+
+.sellers-badge {
+  background: linear-gradient(135deg, #0d6efd, #20c997);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sellers-card {
+  border: none;
+  border-radius: 0.75rem;
+}
+
+.sellers-card .table thead {
+  background: #f1f5ff;
+}
+
+.sellers-card .table thead th {
+  border-top: none;
+  border-bottom: none;
+  color: #495057;
+}
+
+.sellers-row-highlight:hover {
+  background: #f8fbff;
+}
+
+/* Seller name + avatar circle */
+.seller-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #0d6efd;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  margin-right: 8px;
+}
+
+.seller-hero {
+  background: linear-gradient(135deg, #0d6efd, #20c997);
+  border: none;
+  border-radius: 0.9rem;
+  color: #fff;
+}
+
+.seller-hero-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #ffffff;
+}
+
+.seller-inventory-card {
+  border-radius: 0.9rem;
+  border: none;
+}
+
+.seller-item {
+  border-bottom: 1px solid #eee;
+  padding: 12px 0;
+}
+.seller-item h4 {
+  margin: 0 0 4px 0;
+  font-size: 1rem;
+}
+.edit-controls button {
+  padding: 4px 8px;
+  font-size: 0.85rem;
 }

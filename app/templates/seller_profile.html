@@ -1,200 +1,249 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Seller {{ seller.firstname }} {{ seller.lastname }}</title>
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 16px; }
-    .seller-item { border-bottom: 1px solid #eee; padding: 12px 0; }
-    .seller-item h4 { margin: 0 0 4px 0; font-size: 1rem; }
-    .meta { color: #666; font-size: 0.9rem; }
-    .edit-controls { display: inline-block; margin-left: 10px; }
-    .edit-controls input { width: 80px; padding: 4px; margin-right: 4px; }
-    .edit-controls button { padding: 4px 8px; font-size: 0.85rem; }
-    .add-product { background: #f5f5f5; padding: 16px; margin: 20px 0; border-radius: 4px; }
-    .add-product input { padding: 8px; margin-right: 8px; }
-    .nav-links { margin: 20px 0; }
-  </style>
-</head>
-<body>
-  <a href="{{ url_for('index.index') }}">Home</a> | <a href="{{ url_for('sellers.sellers_list') }}">Sellers</a>
-  <h1>{{ seller.firstname }} {{ seller.lastname }}</h1>
-  <p class="meta">Public email: {{ seller.email }} • seller id: {{ seller.id }}</p>
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-4">
+
+  <!-- Header / hero -->
+  <div class="card shadow-sm mb-4 seller-hero">
+    <div class="card-body d-flex align-items-center">
+      <div class="seller-hero-avatar">
+        {{ (seller.firstname[0] ~ seller.lastname[0])|upper }}
+      </div>
+      <div class="ml-3 flex-grow-1">
+        <div class="d-flex justify-content-between align-items-center">
+          <div>
+            <h1 class="h4 mb-1 text-white">{{ seller.firstname }} {{ seller.lastname }}</h1>
+            <div class="text-light small">
+              Public email: {{ seller.email }} • seller id: {{ seller.id }}
+            </div>
+          </div>
+          <div class="text-right d-none d-md-block">
+            <a href="{{ url_for('sellers.sellers_list') }}"
+               class="btn btn-outline-light btn-sm mb-1">
+              ← Back to Sellers
+            </a>
+          </div>
+        </div>
+
+        {% if current_user.is_authenticated and current_user.id == seller.id %}
+        <div class="mt-3">
+          <span class="badge badge-light mr-2">My seller dashboard</span>
+          <a href="{{ url_for('sellers.seller_orders_page') }}"
+             class="btn btn-sm btn-light mr-1">
+            Orders to fulfill
+          </a>
+          <a href="{{ url_for('sellers.seller_analytics_page') }}"
+             class="btn btn-sm btn-outline-light">
+            View analytics
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Inventory header + add-product block (owner only) -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    {% if current_user.is_authenticated and current_user.id == seller.id %}
+      <h2 class="h5 mb-0">My Inventory (Editable)</h2>
+    {% else %}
+      <h2 class="h5 mb-0">Inventory</h2>
+    {% endif %}
+  </div>
 
   {% if current_user.is_authenticated and current_user.id == seller.id %}
-  <div class="nav-links">
-    <strong>My Seller Dashboard:</strong>
-    <a href="{{ url_for('sellers.seller_orders_page') }}">View Orders to Fulfill</a> | <a href="{{ url_for('sellers.seller_analytics_page') }}">View Analytics</a>
+  <div class="card shadow-sm mb-3">
+    <div class="card-body add-product">
+      <h5 class="mb-3">Add new product to inventory</h5>
+      <div class="form-row">
+        <div class="col-md-3 mb-2">
+          <input type="number" id="new-product-id" class="form-control"
+                 placeholder="Product ID" min="1">
+        </div>
+        <div class="col-md-3 mb-2">
+          <input type="number" id="new-quantity" class="form-control"
+                 placeholder="Quantity" value="10" min="0">
+        </div>
+        <div class="col-md-3 mb-2">
+          <input type="number" id="new-price" class="form-control"
+                 placeholder="Your Price" step="0.01" min="0">
+        </div>
+        <div class="col-md-3 mb-2">
+          <button class="btn btn-primary btn-block" onclick="addProduct()">
+            Add Product
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
-
-  <h2>My Inventory (Editable)</h2>
-  
-  <div class="add-product">
-    <h3>Add New Product to Inventory</h3>
-    <input type="number" id="new-product-id" placeholder="Product ID" min="1">
-    <input type="number" id="new-quantity" placeholder="Quantity" value="10" min="0">
-    <input type="number" id="new-price" placeholder="Your Price" step="0.01" min="0">
-    <button onclick="addProduct()">Add Product</button>
-  </div>
-  {% else %}
-  <h2>Inventory</h2>
   {% endif %}
 
-  <div id="seller-inventory" data-seller-id="{{ seller.id }}" data-is-owner="{% if current_user.is_authenticated and current_user.id == seller.id %}true{% else %}false{% endif %}">
-    Loading inventory…
+  <!-- Inventory container (JS fills this) -->
+  <div class="card shadow-sm seller-inventory-card">
+    <div class="card-body">
+      <div id="seller-inventory"
+           data-seller-id="{{ seller.id }}"
+           data-is-owner="{% if current_user.is_authenticated and current_user.id == seller.id %}true{% else %}false{% endif %}">
+        Loading inventory…
+      </div>
+    </div>
   </div>
 
-  <script>
-    const isOwner = document.getElementById('seller-inventory').dataset.isOwner === 'true';
-    const sellerId = parseInt('{{ seller.id }}');
+</div>
 
-    function loadInventory() {
-      fetch(`/api/seller_inventory?seller_id=${sellerId}`)
-        .then(response => {
-          if (!response.ok) throw response;
-          return response.json();
-        })
-        .then(data => {
-          const invDiv = document.getElementById('seller-inventory');
-          invDiv.innerHTML = '';
-          
-          if (!data || data.length === 0) {
-            invDiv.textContent = 'No products found for this seller.';
-            return;
+<!-- Keep your original JS exactly as before -->
+<script>
+  const isOwner = document.getElementById('seller-inventory').dataset.isOwner === 'true';
+  const sellerId = parseInt('{{ seller.id }}');
+
+  function loadInventory() {
+    fetch(`/api/seller_inventory?seller_id=${sellerId}`)
+      .then(response => {
+        if (!response.ok) throw response;
+        return response.json();
+      })
+      .then(data => {
+        const invDiv = document.getElementById('seller-inventory');
+        invDiv.innerHTML = '';
+
+        if (!data || data.length === 0) {
+          invDiv.textContent = 'No products found for this seller.';
+          return;
+        }
+
+        data.forEach(item => {
+          const price = item.seller_price !== null ? item.seller_price : item.base_price;
+          const itemElem = document.createElement('div');
+          itemElem.className = 'seller-item';
+
+          if (isOwner) {
+            itemElem.innerHTML = `
+              <h4>${item.name} <small>#${item.id}</small></h4>
+              <div>
+                Price: $<input type="number" id="price-${item.id}"
+                               value="${Number(price).toFixed(2)}" step="0.01" style="width: 100px;">
+                • Qty: <input type="number" id="qty-${item.id}"
+                              value="${item.quantity}" min="0" style="width: 80px;">
+                • Available: ${item.available ? 'Yes' : 'No'}
+              </div>
+              <div class="edit-controls">
+                <button onclick="updateProduct(${item.id})">Update</button>
+                <button onclick="removeProduct(${item.id})"
+                        style="background: #dc3545; color: white;">Remove</button>
+              </div>
+            `;
+          } else {
+            itemElem.innerHTML = `
+              <h4>${item.name} <small>#${item.id}</small></h4>
+              <div>Price: $${Number(price).toFixed(2)}</div>
+              <div>Qty: ${item.quantity} • Available: ${item.available ? 'Yes' : 'No'}</div>
+            `;
           }
-          
-          data.forEach(item => {
-            const price = item.seller_price !== null ? item.seller_price : item.base_price;
-            const itemElem = document.createElement('div');
-            itemElem.className = 'seller-item';
-            
-            if (isOwner) {
-              // Editable version for owner
-              itemElem.innerHTML = `
-                <h4>${item.name} <small>#${item.id}</small></h4>
-                <div>
-                  Price: $<input type="number" id="price-${item.id}" value="${Number(price).toFixed(2)}" step="0.01" style="width: 100px;">
-                  • Qty: <input type="number" id="qty-${item.id}" value="${item.quantity}" min="0" style="width: 80px;">
-                  • Available: ${item.available ? 'Yes' : 'No'}
-                </div>
-                <div class="edit-controls">
-                  <button onclick="updateProduct(${item.id})">Update</button>
-                  <button onclick="removeProduct(${item.id})" style="background: #dc3545; color: white;">Remove</button>
-                </div>
-              `;
-            } else {
-              // Read-only version for visitors
-              itemElem.innerHTML = `
-                <h4>${item.name} <small>#${item.id}</small></h4>
-                <div>Price: $${Number(price).toFixed(2)}</div>
-                <div>Qty: ${item.quantity} • Available: ${item.available ? 'Yes' : 'No'}</div>
-              `;
-            }
-            
-            invDiv.appendChild(itemElem);
-          });
-        })
-        .catch(async err => {
-          const invDiv = document.getElementById('seller-inventory');
-          let msg = 'unknown';
-          try {
-            const body = await err.json();
-            msg = body.error || body.detail || JSON.stringify(body);
-          } catch (e) {
-            msg = 'fetch failed';
-          }
-          if (invDiv) invDiv.textContent = 'Error loading inventory: ' + msg;
-          console.error('Error fetching seller inventory', err);
+
+          invDiv.appendChild(itemElem);
         });
+      })
+      .catch(async err => {
+        const invDiv = document.getElementById('seller-inventory');
+        let msg = 'unknown';
+        try {
+          const body = await err.json();
+          msg = body.error || body.detail || JSON.stringify(body);
+        } catch (e) {
+          msg = 'fetch failed';
+        }
+        if (invDiv) invDiv.textContent = 'Error loading inventory: ' + msg;
+        console.error('Error fetching seller inventory', err);
+      });
+  }
+
+  function addProduct() {
+    const productId = document.getElementById('new-product-id').value;
+    const quantity = document.getElementById('new-quantity').value;
+    const price = document.getElementById('new-price').value;
+
+    if (!productId || !quantity || !price) {
+      alert('Please fill in all fields');
+      return;
     }
 
-    function addProduct() {
-      const productId = document.getElementById('new-product-id').value;
-      const quantity = document.getElementById('new-quantity').value;
-      const price = document.getElementById('new-price').value;
-      
-      if (!productId || !quantity || !price) {
-        alert('Please fill in all fields');
-        return;
+    fetch('/api/seller_inventory/add', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        product_id: parseInt(productId),
+        quantity: parseInt(quantity),
+        seller_price: parseFloat(price)
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        alert('Product added to inventory!');
+        loadInventory();
+        document.getElementById('new-product-id').value = '';
+        document.getElementById('new-quantity').value = '10';
+        document.getElementById('new-price').value = '';
+      } else {
+        alert('Error: ' + (data.error || 'Unknown'));
       }
-      
-      fetch('/api/seller_inventory/add', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          product_id: parseInt(productId), 
-          quantity: parseInt(quantity), 
-          seller_price: parseFloat(price)
-        })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          alert('Product added to inventory!');
-          loadInventory();
-          document.getElementById('new-product-id').value = '';
-          document.getElementById('new-quantity').value = '10';
-          document.getElementById('new-price').value = '';
-        } else {
-          alert('Error: ' + (data.error || 'Unknown'));
-        }
-      })
-      .catch(err => {
-        alert('Error adding product: ' + err);
-      });
-    }
+    })
+    .catch(err => {
+      alert('Error adding product: ' + err);
+    });
+  }
 
-    function updateProduct(productId) {
-      const quantity = document.getElementById(`qty-${productId}`).value;
-      const price = document.getElementById(`price-${productId}`).value;
-      
-      fetch('/api/seller_inventory/update', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          product_id: productId, 
-          quantity: parseInt(quantity), 
-          seller_price: parseFloat(price)
-        })
-      })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          alert('Product updated!');
-          loadInventory();
-        } else {
-          alert('Error: ' + (data.error || 'Unknown'));
-        }
-      })
-      .catch(err => {
-        alert('Error updating product: ' + err);
-      });
-    }
+  function updateProduct(productId) {
+    const quantity = document.getElementById(`qty-${productId}`).value;
+    const price = document.getElementById(`price-${productId}`).value;
 
-    function removeProduct(productId) {
-      if (!confirm('Remove this product from your inventory?')) return;
-      
-      fetch('/api/seller_inventory/remove', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({product_id: productId})
+    fetch('/api/seller_inventory/update', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        product_id: productId,
+        quantity: parseInt(quantity),
+        seller_price: parseFloat(price)
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.success) {
-          alert('Product removed from inventory!');
-          loadInventory();
-        } else {
-          alert('Error: ' + (data.error || 'Unknown'));
-        }
-      })
-      .catch(err => {
-        alert('Error removing product: ' + err);
-      });
-    }
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        alert('Product updated!');
+        loadInventory();
+      } else {
+        alert('Error: ' + (data.error || 'Unknown'));
+      }
+    })
+    .catch(err => {
+      alert('Error updating product: ' + err);
+    });
+  }
 
-    // Load inventory on page load
-    loadInventory();
-  </script>
-</body>
-</html>
+  function removeProduct(productId) {
+    if (!confirm('Remove this product from your inventory?')) return;
+
+    fetch('/api/seller_inventory/remove', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({product_id: productId})
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        alert('Product removed from inventory!');
+        loadInventory();
+      } else {
+        alert('Error: ' + (data.error || 'Unknown'));
+      }
+    })
+    .catch(err => {
+      alert('Error removing product: ' + err);
+    });
+  }
+
+  // Load inventory on page load
+  loadInventory();
+</script>
+
+{% endblock %}

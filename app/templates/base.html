@@ -1,77 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <title>Mini Amazon</title>
+  <meta charset="utf-8">
+  <title>JATAZon</title>
   <script src="//code.jquery.com/jquery-1.11.1.min.js"></script>
-  <link href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" id="bootstrap-css">
+  <link href="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+        rel="stylesheet" id="bootstrap-css">
   <script src="//maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/example.css') }}">
-  <style>
-    body {
-        font-family: "Lato", sans-serif;
-    }
-
-    .main-head {
-        height: 150px;
-        background: #FFF;
-    }
-
-    .sidenav {
-        height: 100%;
-        background-color: #000;
-        overflow-x: hidden;
-        padding-top: 20px;
-    }
-
-    .main {
-        padding: 0px 10px;
-    }
-
-    .login-main-text {
-        margin-top: 20%;
-        padding: 60px;
-        color: #fff;
-    }
-
-    .login-main-text h2 {
-        font-weight: 300;
-    }
-
-    .btn-black {
-        background-color: #000 !important;
-        color: #fff;
-    }
-  </style>
 </head>
-
 <body>
-  <div class="sidenav">
-    {% block msg %}
-      <h1 style="color:aliceblue">Welcome to CompSci 316 Mini Amazon!</h1>
-      <div style="color: aliceblue; text-align: right; margin-bottom: 25px">
-        {% if current_user.is_authenticated %}
-          Hello {{current_user.firstname}}!
-          <a href="{{ url_for('index.index') }}" class="btn btn-light" style="margin-left:8px;">
-            Home
-          </a>
-          <a href="{{ url_for('cart.cart_page') }}" class="btn btn-info" style="margin-left:8px;">Cart</a>
-          <a href="{{ url_for('users.logout') }}" type="button" class="btn btn-light" style="margin-left:8px;">Log out</a>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('users.account_settings') }}">Account Settings</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('users.user_purchases_page') }}">Purchases</a>
-          </li>
-        {% else %}
-          <a href="{{ url_for('users.login') }}" type="button" class="btn btn-light">Log in</a>
-        {% endif %}
-      </div>
-    {% endblock %}
-  </div>
-  <div class="main">
-    {% block content %}{% endblock %}
-  </div>
-</body>
 
+<nav class="navbar navbar-expand-lg navbar-dark shadow-sm navbar-black">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="{{ url_for('index.index') }}">
+      JATAZon
+    </a>
+
+    <button class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#mainNav" aria-controls="mainNav"
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav mr-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('products_api.product_browser') }}">
+            Browse Products
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('sellers.sellers_list') }}">
+            Browse Sellers
+          </a>
+        </li>
+        {% if current_user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('cart.cart_page') }}">
+            Cart
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+
+      <ul class="navbar-nav ml-auto">
+        {% if current_user.is_authenticated %}
+        <li class="nav-item mr-3 d-flex align-items-center text-light small">
+          Balance: ${{ '%.2f'|format(current_user.balance or 0) }}
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button"
+             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {{ current_user.firstname or 'Account' }}
+          </a>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userMenu">
+            <a class="dropdown-item" href="{{ url_for('users.account_settings') }}">Account settings</a>
+            <a class="dropdown-item" href="{{ url_for('users.user_purchases_page') }}">Purchases</a>
+            <div class="dropdown-divider"></div>
+            <a class="dropdown-item" href="{{ url_for('users.logout') }}">Log out</a>
+          </div>
+        </li>
+        {% else %}
+        <li class="nav-item">
+          <a class="btn btn-outline-light btn-sm" href="{{ url_for('users.login') }}">
+            Log in
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="page-bg">
+  {% block content %}{% endblock %}
+</div>
+
+</body>
 </html>

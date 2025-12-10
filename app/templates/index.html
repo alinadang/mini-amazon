@@ -1,76 +1,147 @@
 {% extends "base.html" %}
-
 {% block content %}
 
-<br><br>
-
-<h2>Products for sale:</h2>
-
-<div style="margin-bottom:12px;">
-  <a href="{{ url_for('products_api.product_browser') }}" class="btn btn-secondary">Browse Products</a>
-  <a href="{{ url_for('sellers.sellers_list') }}" class="btn btn-secondary">Browse Sellers</a>
+<div class="landing-hero">
+  <div class="container py-5">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <h1 class="display-4 font-weight-bold mb-3">Welcome to JATAZon</h1>
+        <p class="lead mb-4">
+          A mini Amazon where you can browse products, compare sellers,
+          manage a cart with save‑for‑later and coupons, and simulate real orders.
+        </p>
+        <div class="d-flex flex-wrap">
+          <a href="{{ url_for('products_api.product_browser') }}"
+             class="btn btn-primary btn-lg mr-2 mb-2">
+            Browse Products
+          </a>
+          {% if not current_user.is_authenticated %}
+          <a href="{{ url_for('users.login') }}"
+             class="btn btn-outline-light btn-lg mb-2">
+            Log in to start shopping
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-md-6 d-none d-md-block">
+        <div class="hero-card shadow-lg">
+          <h5 class="text-uppercase text-muted mb-3">What you can do</h5>
+          <ul class="list-unstyled mb-0 small">
+            <li class="mb-2">• Add items to cart and save them for later</li>
+            <li class="mb-2">• Use coupon code <strong>SAVE10</strong> at checkout</li>
+            <li class="mb-2">• See full order history and balances</li>
+            <li>• Experiment with multi‑seller inventory and pricing</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<table class="table table-hover table-bordered container">
-  <thead class="thead-dark">
-    <tr>
-      <th scope="col">Product ID</th>
-      <th scope="col">Product Name</th>
-      <th scope="col">Price</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for product in avail_products %}
-      <tr>
-        <th scope="row">{{ product.id }}</th>
-        <td>{{ product.name }}</td>
-        <td>{{ product.display_price }}</td>
-        <td>
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">Products for sale</h2>
+    {% if current_user.is_authenticated %}
+      <span class="text-muted small">
+        Welcome back, {{ current_user.firstname }}.
+      </span>
+    {% else %}
+      <span class="text-muted small">
+        Log in to add items to your cart and view your purchase history.
+      </span>
+    {% endif %}
+  </div>
+
+  <div class="table-responsive shadow-sm rounded bg-white">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="thead-dark">
+        <tr>
+          <th scope="col">Product</th>
+          <th scope="col">Name</th>
+          <th scope="col" class="text-right">Price</th>
           {% if current_user.is_authenticated %}
+          <th scope="col" class="text-right">Actions</th>
+          {% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for product in avail_products %}
+        <tr>
+        <td>
+          <a href="{{ url_for('products_api.product_detail', pid=product.id) }}"
+            class="d-flex align-items-center product-cell-link">
+            <img
+              src="{{ product.image_url or ('https://picsum.photos/seed/' ~ product.id ~ '/80/80') }}"
+              alt="{{ product.name }}"
+              class="product-thumb mr-2">
+          </a>
+        </td>
+        <td>
+          <a href="{{ url_for('products_api.product_detail', pid=product.id) }}"
+            class="product-link">
+            {{ product.name }}
+          </a>
+        </td>
+
+          <td class="text-right">{{ product.display_price }}</td>
+          {% if current_user.is_authenticated %}
+          <td class="text-right">
             <form action="{{ url_for('wishlist.wishlist_add', product_id=product.id) }}"
                   method="POST" style="display:inline;">
-              <input type="submit" value="Add to Wishlist"/>
+              <input type="submit" class="btn btn-sm btn-outline-secondary"
+                     value="Add to Wishlist"/>
             </form>
             <button type="button"
-                    class="btn btn-sm btn-success"
-                    style="margin-left:6px;"
+                    class="btn btn-sm btn-success ml-1"
                     onclick="addToCart('{{ product.id }}')">
               Add to Cart
             </button>
+          </td>
           {% endif %}
-        </td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-<br><br>
-{% if current_user.is_authenticated %}
-<h2>Your recent purchases:</h2>
-<table class="table table-hover table-bordered container">
-  <thead class="thead-dark">
-    <tr>
-      <th scope="col">Purchase ID</th>
-      <th scope="col">Product Name</th>
-      <th scope="col">Price</th>
-      <th scope="col">Date</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for purchase in purchase_history %}
-      <tr>
-        <th scope="row">{{ purchase.order_id }}</th>
-        <td>{{ purchase.product_name }}</td>
-        <td>{{ purchase.price }}</td>
-        <td>{{ purchase.order_date }}</td>
-      </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p><a href="{{ url_for('users.login') }}">Log in</a> to see your purchase history!</p>
-{% endif %}
+  <div class="mt-4">
+    {% if current_user.is_authenticated %}
+      <h3 class="h5 mb-3">Your recent purchases</h3>
+      {% if purchase_history %}
+      <div class="table-responsive shadow-sm rounded bg-white">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="thead-light">
+            <tr>
+              <th>Order ID</th>
+              <th>Product</th>
+              <th>Price</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for purchase in purchase_history %}
+            <tr>
+              <td>{{ purchase.order_id }}</td>
+              <td>{{ purchase.product_name }}</td>
+              <td>{{ purchase.price }}</td>
+              <td>{{ purchase.order_date }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <p class="text-muted small mb-0">
+          You have not placed any orders yet.
+        </p>
+      {% endif %}
+    {% else %}
+      <p class="text-center text-muted small mb-0 mt-3">
+        <a href="{{ url_for('users.login') }}">Log in</a> to see your purchase history.
+      </p>
+    {% endif %}
+  </div>
+</div>
 
 <script>
 function addToCart(productId) {
@@ -79,9 +150,9 @@ function addToCart(productId) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pid: productId, quantity: 1 })
   })
-  .then(response => response.json())
+  .then(r => r.json())
   .then(data => {
-    if(data.success) {
+    if (data.success) {
       alert("Item added to cart!");
     } else {
       alert("Failed to add to cart: " + (data.error || "Unknown error"));

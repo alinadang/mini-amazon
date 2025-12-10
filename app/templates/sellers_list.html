@@ -1,50 +1,96 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>Sellers</title>
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; padding: 16px; }
-    ul { padding-left: 18px; }
-    li { margin: 8px 0; }
-    .my-dashboard { 
-      background: #f0f8ff; 
-      padding: 12px; 
-      margin: 16px 0; 
-      border-radius: 4px; 
-      border: 1px solid #4a90e2;
-    }
-    .my-dashboard a {
-      font-weight: bold;
-      color: #4a90e2;
-      text-decoration: none;
-    }
-    .my-dashboard a:hover {
-      text-decoration: underline;
-    }
-  </style>
-</head>
-<body>
-  <a href="{{ url_for('index.index') }}">Home</a> | <strong>Sellers</strong>
-  
-  {% if current_user.is_authenticated %}
-  <div class="my-dashboard">
-    📊 <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}">Go to My Seller Dashboard</a>
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="sellers-header">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+          <li class="breadcrumb-item">
+            <a href="{{ url_for('index.index') }}">Home</a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">Sellers</li>
+        </ol>
+      </nav>
+      <div class="d-flex align-items-center">
+        <h1 class="h3 mb-0 sellers-header-title">Sellers</h1>
+        <span class="sellers-badge ml-2">
+          {{ sellers|length }} total
+        </span>
+      </div>
+      <p class="text-muted small mb-0 mt-1">
+        Discover all sellers on JATAZon and open their profiles to explore inventory and prices.
+      </p>
+    </div>
+
+    {% if current_user.is_authenticated %}
+    <div class="text-right">
+      <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}"
+         class="btn btn-primary btn-sm">
+        Go to my seller dashboard
+      </a>
+    </div>
+    {% endif %}
   </div>
+
+  <div class="card shadow-sm sellers-card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead>
+            <tr>
+              <th scope="col">Seller</th>
+              <th scope="col">Email</th>
+              <th scope="col" class="text-center">Items listed</th>
+              <th scope="col" class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in sellers %}
+            <tr class="sellers-row-highlight">
+              <td>
+                <a href="{{ url_for('sellers.seller_profile', seller_id=s.id) }}"
+                   class="seller-link d-flex align-items-center">
+                  <span class="seller-avatar">
+                    {{ (s.firstname[0] ~ s.lastname[0])|upper }}
+                  </span>
+                  <div>
+                    <div>{{ s.firstname }} {{ s.lastname }}</div>
+                    <div class="text-muted small">ID {{ s.id }}</div>
+                  </div>
+                </a>
+              </td>
+              <td class="small">{{ s.email }}</td>
+              <td class="text-center">{{ s.item_count }}</td>
+              <td class="text-right">
+                <a href="{{ url_for('sellers.seller_profile', seller_id=s.id) }}"
+                   class="btn btn-sm btn-outline-primary">
+                  View profile
+                </a>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                No sellers found.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  {% if current_user.is_authenticated %}
+  <p class="text-muted small mt-3">
+    Tip: use your seller dashboard to manage inventory, prices, and availability.
+  </p>
+  {% else %}
+  <p class="text-muted small mt-3">
+    Log in to become a seller and manage your own storefront.
+  </p>
   {% endif %}
-  
-  <h1>Sellers</h1>
-  <ul>
-    {% for s in sellers %}
-      <li>
-        <a href="{{ url_for('sellers.seller_profile', seller_id=s.id) }}">
-          {{ s.firstname }} {{ s.lastname }} (id={{ s.id }})
-        </a>
-        — {{ s.email }} — items: {{ s.item_count }}
-      </li>
-    {% else %}
-      <li>No sellers found.</li>
-    {% endfor %}
-  </ul>
-</body>
-</html>
+</div>
+
+{% endblock %}

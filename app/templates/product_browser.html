@@ -146,6 +146,7 @@
               <th>Average rating</th>
               <th>Price</th>
               <th>Available</th>
+              <th class="text-right" style="width:190px;">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -153,7 +154,6 @@
               <tr>
                 <td>{{ p.id }}</td>
                 <td>
-                  {# Use the product.image_url when provided; otherwise use seeded picsum fallback #}
                   {% set img_src = (p.image_url if p.image_url is not none and p.image_url|trim != '' else ('https://picsum.photos/seed/' ~ p.id ~ '/200/150')) %}
                   <img src="{{ img_src }}"
                        alt="{{ p.name }}"
@@ -184,6 +184,20 @@
                 </td>
                 <td>${{ '%.2f'|format(p.price or 0) }}</td>
                 <td>{{ 'Yes' if p.available else 'No' }}</td>
+                <td class="text-right">
+                  {% if current_user.is_authenticated %}
+                    <form action="{{ url_for('wishlist.wishlist_add', product_id=p.id) }}"
+                          method="post" style="display:inline;">
+                      <button type="submit" class="btn btn-sm btn-outline-secondary">
+                        Add to wishlist
+                      </button>
+                    </form>
+                  {% else %}
+                    <a href="{{ url_for('users.login') }}" class="btn btn-sm btn-outline-secondary">
+                      Log in to save
+                    </a>
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -206,7 +220,9 @@
               <a class="page-link" href="{{ url_for('products_api.product_browser') }}{{ qs(page-1)|safe }}">‹ Prev</a>
             </li>
 
-            <li class="page-item disabled"><span class="page-link">Page {{ page }} of {{ total_pages }}</span></li>
+            <li class="page-item disabled">
+              <span class="page-link">Page {{ page }} of {{ total_pages }}</span>
+            </li>
 
             <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
               <a class="page-link" href="{{ url_for('products_api.product_browser') }}{{ qs(page+1)|safe }}">Next ›</a>
@@ -240,5 +256,4 @@ document.getElementById("browserForm").addEventListener("submit", function(e){
   }
 });
 </script>
-
 {% endblock %}

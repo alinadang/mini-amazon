@@ -7,6 +7,8 @@ from flask import (
     redirect,
     url_for,
 )
+from flask_login import login_required, current_user
+
 
 social_bp = Blueprint("social", __name__)
 
@@ -113,3 +115,125 @@ def submit_review():
     )
 
     return redirect(url_for("social.reviews_page", user_id=user_id))
+
+@social_bp.route("/my_reviews", methods=["GET"])
+@login_required
+def my_reviews():
+    """
+    List all reviews authored by the current user,
+    sorted newest-first.
+    """
+    db = current_app.db
+
+    rows = db.execute("""
+        SELECT r.review_id,
+               r.product_id,
+               r.rating,
+               r.comment,
+               r.date_reviewed,
+               p.name
+        FROM Reviews r
+        JOIN Products p ON p.id = r.product_id
+        WHERE r.user_id = :uid
+        ORDER BY r.date_reviewed DESC
+    """, uid=current_user.id)
+
+    items = [
+        {
+            "review_id": row[0],
+            "product_id": row[1],
+            "rating": int(row[2]),
+            "comment": row[3],
+            "date_reviewed": row[4],
+            "product_name": row[5],
+        }
+        for row in (rows or [])
+    ]
+
+    return render_template("my_reviews.html", items=items)
+
+
+@social_bp.route("/review_summary")
+def review_summary():
+    """
+    Show summary ratings for products and sellers:
+    - average rating
+    - number of ratings
+    - lists sorted by rating or date
+    """
+    db = current_app.db
+
+    # sort param: "rating" (default) or "date"
+    sort = request.args.get("sort", "rating")
+    if sort not in ("rating", "date"):
+        sort = "rating"
+
+    # ----- Products summary -----
+    # Only show products that have at least 1 review
+    if sort == "rating":
+        prod_order = "AVG(r.rating) DESC, COUNT(*) DESC"
+    else:
+        prod_order = "MAX(r.date_reviewed) DESC"
+
+    product_rows = db.execute(f"""
+        SELECT p.id,
+               p.name,
+               AVG(r.rating)::numeric AS avg_rating,
+               COUNT(*) AS num_reviews,
+               MAX(r.date_reviewed) AS last_reviewed
+        FROM Reviews r
+        JOIN Products p ON p.id = r.product_id
+        GROUP BY p.id, p.name
+        ORDER BY {prod_order}
+    """)
+
+    product_summaries = []
+    for row in product_rows or []:
+        product_summaries.append({
+            "product_id":   row[0],
+            "product_name": row[1],
+            "avg_rating":   float(row[2]) if row[2] is not None else None,
+            "num_reviews":  int(row[3]),
+            "last_reviewed": row[4],
+        })
+
+    # ----- Sellers summary -----
+    # Only show sellers that have at least 1 SellerReview
+    if sort == "rating":
+        seller_order = "AVG(sr.rating) DESC, COUNT(*) DESC"
+    else:
+        seller_order = "MAX(sr.date_reviewed) DESC"
+
+    seller_rows = db.execute(f"""
+        SELECT u.id,
+               u.firstname,
+               u.lastname,
+               AVG(sr.rating)::numeric AS avg_rating,
+               COUNT(*) AS num_reviews,
+               MAX(sr.date_reviewed) AS last_reviewed
+        FROM SellerReviews sr
+        JOIN Users u ON u.id = sr.seller_id
+        GROUP BY u.id, u.firstname, u.lastname
+        ORDER BY {seller_order}
+    """)
+
+    seller_summaries = []
+    for row in seller_rows or []:
+        seller_summaries.append({
+            "seller_id":    row[0],
+            "seller_name":  f"{row[1]} {row[2]}",
+            "avg_rating":   float(row[3]) if row[3] is not None else None,
+            "num_reviews":  int(row[4]),
+            "last_reviewed": row[5],
+        })
+
+    return render_template(
+        "review_summary.html",
+        sort=sort,
+        product_summaries=product_summaries,
+        seller_summaries=seller_summaries,
+    )
+
+
+
+

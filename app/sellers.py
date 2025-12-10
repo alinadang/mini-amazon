@@ -112,7 +112,7 @@ def add_to_inventory():
         if not product_check[0][1]:
             return jsonify({"error": "Product is not available for sale"}), 400
 
-        # Check if seller already has this product?
+        # Check if seller already has this product
         existing = list(db.execute("""
             SELECT seller_id FROM Inventory 
             WHERE seller_id = :seller_id AND product_id = :product_id

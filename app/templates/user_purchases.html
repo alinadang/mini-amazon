@@ -155,17 +155,6 @@
             </thead>
             <tbody>
                 {% for p in purchases %}
-                <!-- DEBUG ROW - Add this temporarily -->
-                <tr style="background-color: #f0f0f0;">
-                    <td colspan="9">
-                        <small class="text-muted">
-                            DEBUG: order_id={{ p.order_id }} | 
-                            Generated URL: {{ url_for('users.order_details', order_id=p.order_id) }} |
-                            User ID in session: {{ current_user.id }}
-                        </small>
-                    </td>
-                </tr>
-                <!-- End DEBUG ROW -->
                 <tr>
                     <td>{{ p.time_purchased.strftime('%Y-%m-%d %H:%M') }}</td>
                     <td>

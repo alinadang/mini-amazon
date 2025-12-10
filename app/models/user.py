@@ -85,34 +85,43 @@ RETURNING id
     @staticmethod
     @login.user_loader
     def get(id):
+        """Load user by ID for Flask-Login"""
+        print(f"=== User.get() called with id={id}, type={type(id)} ===")
+        
+        # Handle None/empty ID
+        if id is None:
+            print("ERROR: User.get() received None")
+            return None
+        
+        # Convert to int since Flask-Login might pass string
         try:
-            # Convert to int since Flask-Login passes string
             user_id = int(id)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            print(f"ERROR: Could not convert id to int: {id}, error: {e}")
             return None
         
-        rows = app.db.execute("""
-    SELECT id, email, firstname, lastname, address, balance
-    FROM Users
-    WHERE id = :id
-    """,
-                            id=user_id)  
-        if not rows:
-            print(f"ERROR: User.get() found no user with ID: {user_id}")
+        # Query database
+        try:
+            rows = app.db.execute("""
+                SELECT id, email, firstname, lastname, address, balance
+                FROM Users
+                WHERE id = :id
+            """, id=user_id)
+            
+            if not rows:
+                print(f"ERROR: User.get() found no user with ID: {user_id}")
+                return None
+            
+            user = User(*(rows[0]))
+            print(f"SUCCESS: User.get() loaded user: {user.email} (ID: {user.id})")
+            return user
+            
+        except Exception as e:
+            print(f"ERROR: Database error in User.get(): {e}")
+            import traceback
+            traceback.print_exc()
             return None
         
-        print(f"DEBUG: User.get() found user: {rows[0][1]} with ID: {rows[0][0]}")
-        return User(*(rows[0])) if rows else None
-#     @login.user_loader
-#     def get(id):
-#         rows = app.db.execute("""
-# SELECT id, email, firstname, lastname, address, balance
-# FROM Users
-# WHERE id = :id
-# """,
-#                               id=id)
-#         return User(*(rows[0])) if rows else None
-
     @staticmethod
     def update_profile(user_id, email, firstname, lastname, address):
         """Update user profile information (not password)"""

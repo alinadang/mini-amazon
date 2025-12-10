@@ -2,42 +2,43 @@
 from flask import current_app as app
 
 class Purchase:
-    def __init__(self, id, uid, pid, time_purchased):
-        self.id = id
-        self.uid = uid
-        self.pid = pid
-        self.time_purchased = time_purchased
+#     def __init__(self, id, uid, pid, time_purchased):
+#         self.id = id
+#         self.uid = uid
+#         self.pid = pid
+#         self.time_purchased = time_purchased
 
-    @staticmethod
-    def get(id):
-        rows = app.db.execute('''
-SELECT id, uid, pid, time_purchased
-FROM Purchases
-WHERE id = :id
-''',
-                              id=id)
-        return Purchase(*(rows[0])) if rows else None
+#     @staticmethod
+#     def get(id):
+#         rows = app.db.execute('''
+# SELECT id, uid, pid, time_purchased
+# FROM Purchases
+# WHERE id = :id
+# ''',
+#                               id=id)
+#         return Purchase(*(rows[0])) if rows else None
 
-    @staticmethod
-    def get_all_by_uid_since(uid, since):
-        rows = app.db.execute('''
-SELECT id, uid, pid, time_purchased
-FROM Purchases
-WHERE uid = :uid
-AND time_purchased >= :since
-ORDER BY time_purchased DESC
-''',
-                              uid=uid,
-                              since=since)
-        return [Purchase(*row) for row in rows]
+#     @staticmethod
+#     def get_all_by_uid_since(uid, since):
+#         rows = app.db.execute('''
+# SELECT id, uid, pid, time_purchased
+# FROM Purchases
+# WHERE uid = :uid
+# AND time_purchased >= :since
+# ORDER BY time_purchased DESC
+# ''',
+#                               uid=uid,
+#                               since=since)
+#         return [Purchase(*row) for row in rows]
 
     @staticmethod
     def history_for_user(uid, sort_by='date', sort_order='desc', 
                         search_term=None, date_from=None, date_to=None, status_filter=None):
+        """ Return purchase history for a user with filtering and sorting.
         """
-        Return purchase history for a user with filtering and sorting.
-        Using actual database tables: Orders, OrderItems, Products, Users
-        """
+        print(f"=== DEBUG in history_for_user ===")
+        print(f"uid parameter received = {uid}")
+        print(f"uid type = {type(uid)}")
         # Base query - adjust column names based on your actual schema
         query = '''
             SELECT
@@ -47,12 +48,12 @@ ORDER BY time_purchased DESC
                 p.name            AS product_name,
                 oi.price          AS product_price,
                 oi.quantity       AS num_items,
-                oi.fulfillment_status          AS status,
+                oi.fulfillment_status AS status,
                 o.total_amount    AS order_total,
                 p.creator_id      AS seller_id,
                 u.firstname       AS seller_firstname,
                 u.lastname        AS seller_lastname,
-                oi.fulfilled_date AS fulfillment_date
+                oi.fulfilled_date AS fulfilled_date
             FROM orders o
             JOIN orderitems oi ON o.id = oi.order_id
             JOIN products p ON oi.product_id = p.id
@@ -143,8 +144,8 @@ ORDER BY time_purchased DESC
                     COUNT(DISTINCT o.id) as total_orders,
                     COUNT(oi.id) as total_items,
                     COALESCE(SUM(o.total_amount), 0) as total_spent,
-                    COUNT(CASE WHEN oi.fulfillment_status = 'fulfilled' THEN 1 END) as fulfilled_orders,
-                    COUNT(CASE WHEN oi.fulfillment_status = 'pending' THEN 1 END) as pending_orders
+                    COUNT(CASE WHEN oi.fulfillment_status = 'fulfilled' THEN o.id END) as fulfilled_orders,
+                    COUNT(CASE WHEN oi.fulfillment_status = 'pending' THEN o.id END) as pending_orders
                 FROM orders o
                 JOIN orderitems oi ON o.id = oi.order_id
                 WHERE o.user_id = :uid
@@ -181,8 +182,7 @@ ORDER BY time_purchased DESC
                     o.order_date,
                     o.total_amount,
                     oi.fulfillment_status,
-                    o.fulfillment_date,
-                    o.shipping_address,
+                    oi.fulfilled_date,
                     oi.product_id,
                     p.name AS product_name,
                     p.image_url,
@@ -214,24 +214,25 @@ ORDER BY time_purchased DESC
                 'total_amount': float(rows[0][2]) if rows[0][2] else 0,
                 'status': rows[0][3],
                 'fulfillment_date': rows[0][4],
-                'shipping_address': rows[0][5],
                 'items': []
             }
             
             for row in rows:
                 order_info['items'].append({
-                    'product_id': row[6],
-                    'product_name': row[7],
-                    'image_url': row[8],
-                    'price': float(row[9]) if row[9] else 0,
-                    'quantity': row[10] if row[10] else 1,
-                    'seller_name': row[11],
-                    'item_total': float(row[9]) * row[10] if row[9] and row[10] else 0
+                    'product_id': row[5],
+                    'product_name': row[6],
+                    'image_url': row[7],
+                    'price': float(row[8]) if row[8] else 0,
+                    'quantity': row[9] if row[9] else 1,
+                    'seller_name': row[10],
+                    'item_total': float(row[8]) * row[9] if row[8] and row[9] else 0
                 })
             
             return order_info
         except Exception as e:
             print(f"Error getting order details: {e}")
+            import traceback
+            traceback.print_exc()  # This will help debug if there are other issues
             return None
 
     @staticmethod

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Order Details</h2>
+    
+    <a href="{{ url_for('users.user_purchases_page') }}" class="btn btn-secondary mb-3">
+        ← Back to Purchase History
+    </a>
+    
+    {% if order %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Order #{{ order['order_id'] }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Order Date:</strong> {{ order['order_date'].strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    <p><strong>Total Amount:</strong> ${{ "%.2f"|format(order['total_amount']) }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Status:</strong> 
+                        {% if order['status'] == 'fulfilled' %}
+                        <span class="badge bg-success">Fulfilled</span>
+                        {% elif order['status'] == 'pending' %}
+                        <span class="badge bg-warning">Pending</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ order['status'] }}</span>
+                        {% endif %}
+                    </p>
+                    {% if order['fulfillment_date'] %}
+                    <p><strong>Fulfilled Date:</strong> {{ order['fulfillment_date'].strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <h4>Order Items</h4>
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Product</th>
+                    <th>Unit Price</th>
+                    <th>Quantity</th>
+                    <th>Item Total</th>
+                    <th>Seller</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order['items'] %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('products_api.product_detail', pid=item['product_id']) }}">
+                            {{ item['product_name'] }}
+                        </a>
+                        {% if item['image_url'] %}
+                        <br><img src="{{ item['image_url'] }}" alt="{{ item['product_name'] }}" style="max-height: 50px;">
+                        {% endif %}
+                    </td>
+                    <td>${{ "%.2f"|format(item['price']) }}</td>
+                    <td>{{ item['quantity'] }}</td>
+                    <td>${{ "%.2f"|format(item['item_total']) }}</td>
+                    <td>{{ item['seller_name'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr class="table-light">
+                    <td colspan="3" class="text-end"><strong>Order Total:</strong></td>
+                    <td colspan="2"><strong>${{ "%.2f"|format(order['total_amount']) }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        Order details not available.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

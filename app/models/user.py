@@ -85,13 +85,33 @@ RETURNING id
     @staticmethod
     @login.user_loader
     def get(id):
+        try:
+            # Convert to int since Flask-Login passes string
+            user_id = int(id)
+        except (ValueError, TypeError):
+            return None
+        
         rows = app.db.execute("""
-SELECT id, email, firstname, lastname, address, balance
-FROM Users
-WHERE id = :id
-""",
-                              id=id)
+    SELECT id, email, firstname, lastname, address, balance
+    FROM Users
+    WHERE id = :id
+    """,
+                            id=user_id)  
+        if not rows:
+            print(f"ERROR: User.get() found no user with ID: {user_id}")
+            return None
+        
+        print(f"DEBUG: User.get() found user: {rows[0][1]} with ID: {rows[0][0]}")
         return User(*(rows[0])) if rows else None
+#     @login.user_loader
+#     def get(id):
+#         rows = app.db.execute("""
+# SELECT id, email, firstname, lastname, address, balance
+# FROM Users
+# WHERE id = :id
+# """,
+#                               id=id)
+#         return User(*(rows[0])) if rows else None
 
     @staticmethod
     def update_profile(user_id, email, firstname, lastname, address):

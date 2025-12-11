@@ -228,28 +228,26 @@ class Purchase:
 
     @staticmethod
     def get_order_details(order_id, uid=None):
-        """
-        Get detailed information for a specific order, including items.
-        If uid is provided, enforce that the order belongs to that user.
-        """
         try:
             query = '''
                 SELECT
-                    o.id AS order_id,
-                    o.order_date,
-                    o.total_amount,
-                    oi.fulfillment_status,
-                    oi.fulfilled_date,
-                    oi.product_id,
-                    p.name AS product_name,
-                    p.image_url,
-                    oi.price,
-                    oi.quantity,
-                    u.firstname || ' ' || u.lastname AS seller_name
+                    o.id AS order_id,          -- 0
+                    o.order_date,              -- 1
+                    o.total_amount,            -- 2
+                    oi.fulfillment_status,     -- 3
+                    oi.fulfilled_date,         -- 4
+                    oi.product_id,             -- 5
+                    p.name AS product_name,    -- 6
+                    p.image_url,               -- 7
+                    oi.price,                  -- 8
+                    oi.quantity,               -- 9
+                    oi.seller_id,              -- 10
+                    u.firstname,               -- 11
+                    u.lastname                 -- 12
                 FROM orders o
                 JOIN orderitems oi ON o.id = oi.order_id
                 JOIN products p ON oi.product_id = p.id
-                LEFT JOIN users u ON p.creator_id = u.id
+                LEFT JOIN users u ON oi.seller_id = u.id
                 WHERE o.id = :order_id
             '''
 
@@ -276,14 +274,21 @@ class Purchase:
             for row in rows:
                 price = float(row[8]) if row[8] else 0.0
                 qty = row[9] if row[9] else 1
+                seller_id = row[10]
+                if row[11] and row[12]:
+                    seller_name = f"{row[11]} {row[12]}"
+                else:
+                    seller_name = "Unknown Seller"
+
                 order_info['items'].append({
                     'product_id': row[5],
                     'product_name': row[6],
                     'image_url': row[7],
                     'price': price,
                     'quantity': qty,
-                    'seller_name': row[10],
-                    'item_total': price * qty
+                    'item_total': price * qty,
+                    'seller_id': seller_id,        # <-- now present
+                    'seller_name': seller_name,    # <-- human-readable
                 })
 
             return order_info

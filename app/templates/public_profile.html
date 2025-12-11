@@ -160,6 +160,37 @@
   </div>
   {% endif %}
 
+  {% if is_seller and current_user.is_authenticated and current_user.id != user.id %}
+  <div class="mb-3">
+    {% if has_purchased_from_seller %}
+      {% if my_seller_review %}
+        <a class="btn btn-sm btn-secondary"
+           href="{{ url_for('users.seller_review', seller_id=user.id) }}">
+          Edit your review for this seller
+        </a>
+
+        <form method="post"
+              action="{{ url_for('users.delete_seller_review', seller_id=user.id) }}"
+              style="display:inline-block; margin-left:8px;">
+          <button type="submit" class="btn btn-sm btn-outline-danger">
+            Delete review
+          </button>
+        </form>
+      {% else %}
+        <a class="btn btn-sm btn-secondary"
+           href="{{ url_for('users.seller_review', seller_id=user.id) }}">
+          Write a review for this seller
+        </a>
+      {% endif %}
+    {% else %}
+      <small class="text-muted">
+        You can review this seller after purchasing from them.
+      </small>
+    {% endif %}
+  </div>
+{% endif %}
+
+
   <!-- Reviews Section -->
   <div class="mb-4">
     <h5>Reviews for this Seller</h5>
@@ -169,8 +200,7 @@
         <div class="list-group-item">
           <div class="d-flex justify-content-between align-items-center mb-1">
             <div>
-              <strong>{{ r.product_name }}</strong>
-              <span class="text-muted small">(#{{ r.product_id }})</span>
+              <strong>{{ r.reviewer_name }}</strong>
             </div>
             <div>
               <span class="badge bg-warning text-dark">

@@ -1,126 +1,42 @@
 {% extends "base.html" %}
-
 {% block content %}
-<div class="container mt-4">
-  <h2>Latest Reviews</h2>
-  <p class="text-muted">Enter a user ID below to see their 5 most recent reviews.</p>
 
-  <!-- 🔹 User ID form (GET) -->
-  <form method="get" action="{{ url_for('social.reviews_page') }}" class="form-inline mb-3">
-    <label for="user_id" class="mr-2">User ID:</label>
-    <input
-      type="number"
-      id="user_id"
-      name="user_id"
-      class="form-control mr-2"
-      value="{{ user_id or '' }}"
-      placeholder="e.g. 0"
-      min="0"
-      style="width:120px;"
-      required
-    >
-    <button type="submit" class="btn btn-primary">Show Reviews</button>
-  </form>
+<div class="container py-4">
+  <h1 class="h4 mb-4">My Reviews</h1>
 
-  {% if error %}
-    <div class="alert alert-danger mt-3">{{ error }}</div>
-  {% endif %}
+  {% if reviews and reviews|length > 0 %}
+    <div class="list-group">
+      {% for r in reviews %}
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between">
+            <div>
+              {% if r.kind == 'product' %}
+                <span class="badge badge-info mr-2">Product</span>
+                <strong>{{ r.product_name }}</strong>
+              {% else %}
+                <span class="badge badge-secondary mr-2">Seller</span>
+                <strong>{{ r.seller_name }}</strong>
+              {% endif %}
+              <span class="ml-2">★ {{ r.rating }}</span>
+            </div>
+            <small class="text-muted">
+              {{ r.date_reviewed }}
+            </small>
+          </div>
 
-  {% if not items or items|length == 0 %}
-    {% if user_id is not none %}
-      <p class="mt-3">No reviews yet for user {{ user_id }}.</p>
-    {% else %}
-      <p class="mt-3">Enter a user ID above to see their reviews.</p>
-    {% endif %}
+          {# show text for both product and seller reviews #}
+          {% set text = r.comment or r.review_text %}
+          {% if text %}
+            <p class="mb-0 mt-2">{{ text }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
   {% else %}
-    <table class="table table-bordered table-striped mt-3">
-      <thead class="thead-dark">
-        <tr>
-          <th>Product ID</th>
-          <th>Date</th>
-          <th>Review</th>
-          <th>Stars</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in items %}
-        <tr>
-          <td>{{ r.product_id }}</td>
-          <td>{{ r.date_reviewed }}</td>
-          <td>{{ r.comment }}</td>
-          <td>
-            {% set stars = (r.rating|int) %}
-            {{ '★' * stars }}{{ '☆' * (5 - stars) }}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="alert alert-secondary">
+      You haven’t written any reviews yet.
+    </div>
   {% endif %}
 </div>
 
-{# 🔹 Bottom bar to SUBMIT A REVIEW into Reviews table #}
-<div id="feedback-bar">
-  <form method="post" action="{{ url_for('social.submit_review') }}" class="container d-flex">
-
-    <!-- User ID for the review (can be same as top; prefilled) -->
-    <input
-      type="number"
-      name="user_id"
-      class="form-control mr-2"
-      placeholder="User ID"
-      value="{{ user_id or '' }}"
-      min="0"
-      required
-      style="max-width: 100px;"
-    >
-
-    <!-- Product being reviewed -->
-    <input
-      type="number"
-      name="product_id"
-      class="form-control mr-2"
-      placeholder="Product ID"
-      min="0"
-      required
-      style="max-width: 120px;"
-    >
-
-    <!-- Star rating 1–5 -->
-    <input
-      type="number"
-      name="rating"
-      class="form-control mr-2"
-      placeholder="Stars (1-5)"
-      min="1"
-      max="5"
-      required
-      style="max-width: 120px;"
-    >
-
-    <!-- Review text -->
-    <input
-      type="text"
-      name="comment"
-      class="form-control mr-2"
-      placeholder="Enter your review..."
-      required
-    >
-
-    <button type="submit" class="btn btn-primary">Submit Review</button>
-  </form>
-</div>
-
-<style>
-  #feedback-bar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 8px 0;
-    background: #f8f9fa;
-    border-top: 1px solid #dee2e6;
-    z-index: 1030; /* above main content */
-  }
-</style>
 {% endblock %}

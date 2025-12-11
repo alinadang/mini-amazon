@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Rating Summary</h2>
+    <div>
+      <a href="{{ url_for('social.review_summary', sort='rating') }}"
+         class="btn btn-sm {% if sort == 'rating' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Sort by Rating
+      </a>
+      <a href="{{ url_for('social.review_summary', sort='date') }}"
+         class="btn btn-sm {% if sort == 'date' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+        Sort by Recent Activity
+      </a>
+    </div>
+  </div>
+
+  <!-- PRODUCTS SUMMARY -->
+  <h4>Products</h4>
+  {% if product_summaries %}
+    <table class="table table-sm table-striped align-middle mt-2">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Average Rating</th>
+          <th># Reviews</th>
+          <th>Last Reviewed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in product_summaries %}
+          <tr>
+            <td>
+              <a href="{{ url_for('products_api.product_detail', pid=p.product_id) }}">
+                {{ p.product_name }}
+              </a>
+            </td>
+            <td>
+              {% if p.avg_rating is not none %}
+                ⭐ {{ "%.2f"|format(p.avg_rating) }}
+              {% else %}
+                –
+              {% endif %}
+            </td>
+            <td>{{ p.num_reviews }}</td>
+            <td>{{ p.last_reviewed }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No product reviews yet.</p>
+  {% endif %}
+
+  <hr class="my-4"/>
+
+  <!-- SELLERS SUMMARY -->
+  <h4>Sellers</h4>
+  {% if seller_summaries %}
+    <table class="table table-sm table-striped align-middle mt-2">
+      <thead>
+        <tr>
+          <th>Seller</th>
+          <th>Average Rating</th>
+          <th># Reviews</th>
+          <th>Last Reviewed</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in seller_summaries %}
+          <tr>
+            <td>{{ s.seller_name }}</td>
+            <td>
+              {% if s.avg_rating is not none %}
+                ⭐ {{ "%.2f"|format(s.avg_rating) }}
+              {% else %}
+                –
+              {% endif %}
+            </td>
+            <td>{{ s.num_reviews }}</td>
+            <td>{{ s.last_reviewed }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No seller reviews to summarize yet.</p>
+  {% endif %}
+
+  <p class="mt-3">
+    <a href="{{ url_for('index.index') }}">← Back to Home</a>
+  </p>
+</div>
+{% endblock %}

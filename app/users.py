@@ -1,5 +1,5 @@
 from flask import render_template, redirect, url_for, flash, request
-from werkzeug.urls import url_parse
+from urllib.parse import urlparse
 from flask_login import login_user, logout_user, current_user, login_required
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField
@@ -32,7 +32,7 @@ def login():
             return redirect(url_for('users.login'))
         login_user(user)
         next_page = request.args.get('next')
-        if not next_page or url_parse(next_page).netloc != '':
+        if not next_page or urlparse(next_page).netloc != '':
             next_page = url_for('index.index')
         return redirect(next_page)
     return render_template('login.html', title='Sign In', form=form)
@@ -318,59 +318,67 @@ def get_seller_statistics(seller_id):
 
 
 def get_seller_reviews(seller_id):
-    """Get reviews for a seller - returns empty list if reviews table doesn't exist"""
+    """
+    Get *seller* reviews for a seller from SellerReviews.
+
+    This returns a list of dicts that work for BOTH:
+    - seller_profile.html (uses rating/comment/date_reviewed/reviewer_name)
+    - public_profile.html (uses reviewer_id, review_text, created_at, etc.)
+    """
     try:
         rows = app.db.execute('''
-            SELECT 
-                r.review_id,
-                r.rating,
-                r.comment,
-                r.date_reviewed,
+            SELECT
+                sr.id,
+                sr.rating,
+                sr.comment,
+                sr.date_reviewed,
                 u.id AS reviewer_id,
                 u.firstname,
-                u.lastname,
-                p.id AS product_id,
-                p.name AS product_name
-            FROM Reviews r
-            JOIN Products p ON r.product_id = p.id
-            JOIN Users u ON r.user_id = u.id
-            WHERE p.creator_id = :seller_id
-            ORDER BY r.date_reviewed DESC
+                u.lastname
+            FROM SellerReviews sr
+            JOIN Users u ON sr.user_id = u.id
+            WHERE sr.seller_id = :seller_id
+            ORDER BY sr.date_reviewed DESC
         ''', seller_id=seller_id)
 
         reviews = []
         for row in rows:
             reviews.append({
                 'id': row[0],
-                'rating': row[1],
-                'review_text': row[2],
-                'created_at': row[3],
+                'rating': int(row[1]),
+                'comment': row[2],
+                'review_text': row[2],        # for public_profile compatibility
+                'date_reviewed': row[3],
+                'created_at': row[3],         # for public_profile compatibility
                 'reviewer_id': row[4],
-                'reviewer_name': f"{row[5]} {row[6][0]}." if row[6] else row[5],
-                'product_id': row[7],
-                'product_name': row[8],
+                'reviewer_name': (
+                    f"{row[5]} {row[6][0]}." if row[6] else row[5]
+                ),
+                # product fields no longer applicable, but public_profile doesn't *need* them
+                'product_id': None,
+                'product_name': None,
             })
         return reviews
 
     except Exception as e:
-        print(f"Reviews table not available or error: {e}")
+        print(f"SellerReviews table not available or error: {e}")
         return []
+
 
 
 
 def get_user_sellers(user_id):
     """Get list of sellers that this user has purchased from"""
     try:
-        rows = app.db.execute('''
-            SELECT DISTINCT p.creator_id, u.firstname, u.lastname
+        rows = app.db.execute("""
+            SELECT DISTINCT oi.seller_id, u.firstname, u.lastname
             FROM orders o
             JOIN orderitems oi ON o.id = oi.order_id
-            JOIN products p ON oi.product_id = p.id
-            JOIN users u ON p.creator_id = u.id
+            JOIN users u ON oi.seller_id = u.id
             WHERE o.user_id = :user_id
             ORDER BY u.firstname, u.lastname
-        ''', user_id=user_id)
-        
+        """, user_id=user_id)
+
         sellers = []
         for row in rows:
             sellers.append({
@@ -383,37 +391,48 @@ def get_user_sellers(user_id):
         return []
 
 
+
 @bp.route('/user/<int:user_id>')
 def public_profile(user_id):
     """Public view of a user's profile - shows account info, and for sellers: contact info and reviews"""
-    # Get the user
     user = User.get(user_id)
     if not user:
         flash('User not found', 'error')
         return redirect(url_for('index.index'))
     
-    # Check if user is a seller
     is_seller = User.is_seller(user_id)
-    
     buyer_summary = Purchase.get_purchase_summary(user_id)
 
-    # Initialize variables
     seller_stats = None
     reviews = []
-    
+    has_purchased_from_seller = False
+    my_seller_review = None
+
     if is_seller:
-        # Get seller statistics (optional summary info)
         seller_stats = get_seller_statistics(user_id)
-        
-        # Get seller reviews - this is the main requirement
         reviews = get_seller_reviews(user_id)
+
+        if current_user.is_authenticated and current_user.id != user_id:
+            # has this user ever ordered from this seller?
+            sellers_bought = get_user_sellers(current_user.id)
+            has_purchased_from_seller = any(s['id'] == user_id for s in sellers_bought)
+
+            # does this user already have a review?
+            for r in reviews:
+                if r.get('reviewer_id') == current_user.id:
+                    my_seller_review = r
+                    break
     
-    return render_template('public_profile.html', 
-                           user=user, 
-                           is_seller=is_seller,
-                           buyer_summary = buyer_summary,
-                           seller_stats=seller_stats,
-                           reviews=reviews)
+    return render_template(
+        'public_profile.html', 
+        user=user, 
+        is_seller=is_seller,
+        buyer_summary=buyer_summary,
+        seller_stats=seller_stats,
+        reviews=reviews,
+        has_purchased_from_seller=has_purchased_from_seller,
+        my_seller_review=my_seller_review,
+    )
 
 
 @bp.route('/users/search')
@@ -439,6 +458,176 @@ def search_users():
         is_current_seller=is_current_seller,
     )
 
+@bp.route('/user/<int:seller_id>/review', methods=['GET', 'POST'])
+@login_required
+def seller_review(seller_id):
+    """Create or update a review for a seller, if user has ordered from them."""
+    # can't review yourself
+    if seller_id == current_user.id:
+        flash("You can't review yourself.", "error")
+        return redirect(url_for('users.public_profile', user_id=seller_id))
+
+    seller = User.get(seller_id)
+    if not seller:
+        flash('Seller not found.', 'error')
+        return redirect(url_for('index.index'))
+
+    # ---- check that current user has ordered from this seller ----
+    has_order = app.db.execute("""
+        SELECT 1
+        FROM orders o
+        JOIN orderitems oi ON o.id = oi.order_id
+        WHERE o.user_id = :uid
+          AND oi.seller_id = :sid
+        LIMIT 1
+    """, uid=current_user.id, sid=seller_id)
+
+    if not has_order:
+        flash('You can only review sellers you have purchased from.', 'error')
+        return redirect(url_for('users.public_profile', user_id=seller_id))
+
+    # GET → show form (pre-filled if an existing review)
+    if request.method == 'GET':
+        existing = None
+        rows = app.db.execute("""
+            SELECT rating, comment
+            FROM SellerReviews
+            WHERE seller_id = :sid AND user_id = :uid
+            LIMIT 1
+        """, sid=seller_id, uid=current_user.id)
+        if rows:
+            existing = {
+                "rating": int(rows[0][0]),
+                "comment": rows[0][1] or ""
+            }
+        return render_template('seller_review_form.html',
+                               seller=seller,
+                               existing=existing)
+
+    # POST → insert or update (single review per (seller, user))
+    rating_raw = request.form.get('rating')
+    comment = (request.form.get('comment') or '').strip()
+
+    try:
+        rating = int(rating_raw)
+        if rating < 1 or rating > 5:
+            raise ValueError()
+    except Exception:
+        flash('Rating must be an integer between 1 and 5.', 'error')
+        return redirect(url_for('users.seller_review', seller_id=seller_id))
+
+    try:
+        existing = app.db.execute("""
+            SELECT id
+            FROM SellerReviews
+            WHERE seller_id = :sid AND user_id = :uid
+            LIMIT 1
+        """, sid=seller_id, uid=current_user.id)
+
+        if existing:
+            # update existing
+            app.db.execute("""
+                UPDATE SellerReviews
+                SET rating = :rating,
+                    comment = :comment,
+                    date_reviewed = NOW()
+                WHERE seller_id = :sid AND user_id = :uid
+            """, rating=rating, comment=comment or None,
+               sid=seller_id, uid=current_user.id)
+        else:
+            # insert new
+            app.db.execute("""
+                INSERT INTO SellerReviews (seller_id, user_id, rating, comment, date_reviewed)
+                VALUES (:sid, :uid, :rating, :comment, NOW())
+            """, sid=seller_id, uid=current_user.id,
+               rating=rating, comment=comment or None)
+
+        flash('Seller review saved!', 'success')
+    except Exception as e:
+        app.logger.exception("Error saving seller review")
+        flash(f"Could not save seller review: {e}", "error")
+
+    return redirect(url_for('users.public_profile', user_id=seller_id))
+
+@bp.route('/user/<int:seller_id>/review/delete', methods=['POST'])
+@login_required
+def delete_seller_review(seller_id):
+    """Delete the current user's review for a seller."""
+    app.db.execute("""
+        DELETE FROM SellerReviews
+        WHERE seller_id = :sid AND user_id = :uid
+    """, sid=seller_id, uid=current_user.id)
+
+    flash('Your seller review was removed.', 'success')
+    return redirect(url_for('users.public_profile', user_id=seller_id))
+
+
+
+@bp.route('/my_reviews')
+@login_required
+def my_reviews():
+    """Show both product reviews and seller reviews written by the current user."""
+    db = app.db
+
+    combined_reviews = []
+
+    # -------- product reviews by this user --------
+    product_rows = list(db.execute("""
+        SELECT r.review_id,
+               r.product_id,
+               p.name,
+               r.rating,
+               r.comment,
+               r.date_reviewed
+        FROM Reviews r
+        JOIN Products p ON p.id = r.product_id
+        WHERE r.user_id = :uid
+        ORDER BY r.date_reviewed DESC
+    """, uid=current_user.id))
+
+    for r in product_rows:
+        combined_reviews.append({
+            'kind': 'product',
+            'rating': int(r[3]),
+            'comment': r[4],
+            'date_reviewed': r[5],
+            'product_id': r[1],
+            'product_name': r[2],
+            'seller_id': None,
+            'seller_name': None,
+        })
+
+    # -------- seller reviews by this user --------
+    seller_rows = list(db.execute("""
+        SELECT sr.id,
+               sr.seller_id,
+               u.firstname,
+               u.lastname,
+               sr.rating,
+               sr.comment,
+               sr.date_reviewed
+        FROM SellerReviews sr
+        JOIN Users u ON u.id = sr.seller_id
+        WHERE sr.user_id = :uid
+        ORDER BY sr.date_reviewed DESC
+    """, uid=current_user.id))
+
+    for r in seller_rows:
+        combined_reviews.append({
+            'kind': 'seller',
+            'rating': int(r[4]),
+            'comment': r[5],
+            'date_reviewed': r[6],
+            'product_id': None,
+            'product_name': None,
+            'seller_id': r[1],
+            'seller_name': f"{r[2]} {r[3]}",
+        })
+
+    # -------- sort together: newest first --------
+    combined_reviews.sort(key=lambda item: item['date_reviewed'], reverse=True)
+
+    return render_template('my_reviews.html', reviews=combined_reviews)
 
 
 

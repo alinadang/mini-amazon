@@ -63,7 +63,16 @@
                     <td>${{ "%.2f"|format(item['price']) }}</td>
                     <td>{{ item['quantity'] }}</td>
                     <td>${{ "%.2f"|format(item['item_total']) }}</td>
-                    <td>{{ item['seller_name'] }}</td>
+                    <td>
+                        {{ item['seller_name'] }}
+                        {% if current_user.is_authenticated and item['seller_id'] != current_user.id %}
+                          <br>
+                          <a href="{{ url_for('users.seller_review', seller_id=item['seller_id']) }}"
+                             class="btn btn-sm btn-outline-secondary mt-1">
+                            Review seller
+                          </a>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

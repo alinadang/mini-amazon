@@ -256,17 +256,17 @@ WHERE id = :user_id
     @staticmethod
     def get_sellers(query=None, limit=None):
         """
-        Return sellers (users who have products / inventory),
+        Return sellers (users who have inventory entries),
         optionally filtered by a search query.
         """
         base_sql = """
             SELECT u.id,
-                   u.firstname,
-                   u.lastname,
-                   u.email,
-                   COUNT(DISTINCT p.id) AS items_listed
+                u.firstname,
+                u.lastname,
+                u.email,
+                COUNT(DISTINCT i.product_id) AS items_listed
             FROM Users u
-            JOIN Products p ON p.creator_id = u.id
+            JOIN Inventory i ON i.seller_id = u.id
         """
         params = {}
 

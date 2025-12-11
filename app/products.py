@@ -1,9 +1,20 @@
-from flask import Blueprint, request, jsonify, current_app, render_template, flash, redirect, url_for, g, abort
+from flask import (
+    Blueprint,
+    request,
+    jsonify,
+    current_app,
+    render_template,
+    flash,
+    redirect,
+    url_for,
+    abort,
+)
 from flask_login import login_required, current_user
 from .models.product import Product
 import math
 
 bp = Blueprint('products_api', __name__, url_prefix='')
+
 
 @bp.route('/api/products/top', methods=['GET'])
 def top_products():
@@ -38,6 +49,7 @@ def product_browser():
     per_page_raw = request.args.get('per_page', None)
     k_raw = request.args.get('k', None)
 
+    # per_page (allow ?k= as alias)
     if per_page_raw is not None:
         try:
             per_page = int(per_page_raw)
@@ -89,8 +101,9 @@ def product_browser():
     max_price_val = _parse_price(max_price_raw)
 
     current_app.logger.debug(
-        f"product_browser: page={page} per_page={per_page} sort={sort_key} dir={sort_dir} q='{q}' "
-        f"category='{category}' ratings='{ratings}' min_price='{min_price_val}' max_price='{max_price_val}'"
+        f"product_browser: page={page} per_page={per_page} sort={sort_key} "
+        f"dir={sort_dir} q='{q}' category='{category}' ratings='{ratings}' "
+        f"min_price='{min_price_val}' max_price='{max_price_val}'"
     )
 
     try:
@@ -112,7 +125,7 @@ def product_browser():
 
         total_pages = max(1, math.ceil(total / per_page)) if per_page > 0 else 1
 
-        # Defensive: ensure avg_rating set (Product.get_page should do this)
+        # ensure avg_rating set on each product (one query for all products on this page)
         pids = [p.id for p in products]
         if pids:
             rows = current_app.db.execute("""
@@ -190,23 +203,42 @@ def product_detail(pid):
 
     db = current_app.db
 
-    avg_row = db.execute("SELECT AVG(rating)::numeric FROM Reviews WHERE product_id = :pid", pid=pid)
-    product.avg_rating = float(avg_row[0][0]) if avg_row and avg_row[0][0] is not None else None
+    # average rating + count
+    stats = db.execute("""
+        SELECT AVG(rating)::numeric, COUNT(*)
+        FROM Reviews
+        WHERE product_id = :pid
+    """, pid=pid)
+    if stats:
+        avg_val = stats[0][0]
+        cnt_val = stats[0][1]
+        product.avg_rating = float(avg_val) if avg_val is not None else None
+        product.review_count = int(cnt_val)
+    else:
+        product.avg_rating = None
+        product.review_count = 0
 
+    # total sold
     product_total_sold = 0
     try:
-        total_row = db.execute("SELECT COALESCE(SUM(quantity),0) FROM OrderItems WHERE product_id = :pid", pid=pid)
+        total_row = db.execute(
+            "SELECT COALESCE(SUM(quantity),0) FROM OrderItems WHERE product_id = :pid",
+            pid=pid
+        )
         if total_row:
             product_total_sold = int(total_row[0][0])
     except Exception:
         current_app.logger.exception("Could not fetch product total sales; continuing with zero")
 
+    # creator
     creator = None
     if getattr(product, 'creator_id', None) is not None:
-        r = db.execute("SELECT id, firstname, lastname FROM Users WHERE id = :uid", uid=product.creator_id)
+        r = db.execute("SELECT id, firstname, lastname FROM Users WHERE id = :uid",
+                       uid=product.creator_id)
         if r:
             creator = {'id': r[0][0], 'firstname': r[0][1], 'lastname': r[0][2]}
 
+    # sellers
     sellers_rows = db.execute("""
       SELECT i.seller_id, i.quantity, COALESCE(i.seller_price, p.price) as seller_price,
              u.firstname, u.lastname
@@ -228,8 +260,14 @@ def product_detail(pid):
                 'lastname': r[4]
             })
 
+    # reviews list
     review_rows = db.execute("""
-      SELECT r.rating, r.comment, r.date_reviewed, u.firstname, u.lastname
+      SELECT r.user_id,
+             r.rating,
+             r.comment,
+             r.date_reviewed,
+             u.firstname,
+             u.lastname
       FROM Reviews r
       LEFT JOIN Users u ON u.id = r.user_id
       WHERE r.product_id = :pid
@@ -240,12 +278,24 @@ def product_detail(pid):
     if review_rows:
         for r in review_rows:
             reviews.append({
-                'rating': int(r[0]),
-                'comment': r[1],
-                'date_reviewed': r[2],
-                'firstname': r[3],
-                'lastname': r[4]
+                'user_id':       r[0],
+                'rating':        int(r[1]),
+                'comment':       r[2],
+                'date_reviewed': r[3],
+                'firstname':     r[4],
+                'lastname':      r[5],
             })
+
+    # whether current user has review (for the button text)
+    user_has_review = False
+    if current_user.is_authenticated:
+        row = db.execute("""
+            SELECT 1
+            FROM Reviews
+            WHERE product_id = :pid AND user_id = :uid
+            LIMIT 1
+        """, pid=pid, uid=current_user.id)
+        user_has_review = bool(row)
 
     return render_template(
         'product_detail.html',
@@ -253,7 +303,8 @@ def product_detail(pid):
         sellers=sellers,
         reviews=reviews,
         creator=creator,
-        product_total_sold=product_total_sold
+        product_total_sold=product_total_sold,
+        user_has_review=user_has_review,
     )
 
 
@@ -316,6 +367,7 @@ def product_sell(pid):
         flash("Could not update inventory", "danger")
 
     return redirect(url_for('products_api.product_detail', pid=pid))
+
 
 @bp.route('/product/new', methods=['GET', 'POST'])
 @login_required
@@ -422,3 +474,85 @@ def product_edit(pid):
         current_app.logger.exception("Error updating product")
         flash(f'Could not update product: {str(e)}', 'danger')
         return render_template('product_form.html', product=request.form, categories=categories, action='Edit')
+
+
+@bp.route('/product/<int:pid>/review', methods=['GET', 'POST'])
+@login_required
+def product_add_review(pid):
+    """
+    Create or update the current user's review for this product.
+    """
+    db = current_app.db
+
+    product = Product.get(pid)
+    if not product:
+        abort(404)
+
+    # GET → show form with existing review (if any)
+    if request.method == 'GET':
+        existing = None
+        row = db.execute("""
+            SELECT rating, comment
+            FROM Reviews
+            WHERE product_id = :pid AND user_id = :uid
+            LIMIT 1
+        """, pid=pid, uid=current_user.id)
+        if row:
+            existing = {
+                'rating':  int(row[0][0]),
+                'comment': row[0][1],
+            }
+        return render_template('review_form.html', product=product, existing=existing)
+
+    # POST → delete old review (if any), insert new review
+    rating_raw = request.form.get('rating')
+    comment = (request.form.get('comment') or '').strip()
+
+    try:
+        rating = int(rating_raw)
+        if rating < 1 or rating > 5:
+            raise ValueError()
+    except Exception:
+        flash('Rating must be an integer between 1 and 5.', 'danger')
+        return render_template('review_form.html', product=product)
+
+    try:
+        # delete any previous review from this user for this product
+        db.execute("""
+            DELETE FROM Reviews
+            WHERE product_id = :pid AND user_id = :uid
+        """, pid=pid, uid=current_user.id)
+
+        # insert fresh review
+        db.execute("""
+            INSERT INTO Reviews (product_id, user_id, rating, comment, date_reviewed)
+            VALUES (:pid, :uid, :rating, :comment, NOW())
+        """, pid=pid,
+           uid=current_user.id,
+           rating=rating,
+           comment=comment or None)
+
+        flash('Review saved!', 'success')
+        return redirect(url_for('products_api.product_detail', pid=pid))
+    except Exception as e:
+        current_app.logger.exception("Error saving review")
+        flash(f'Could not save review: {e}', 'danger')
+        return render_template('review_form.html', product=product)
+
+
+@bp.route('/product/<int:pid>/review/delete', methods=['POST'])
+@login_required
+def product_review_delete(pid):
+    db = current_app.db
+
+    product = Product.get(pid)
+    if not product:
+        abort(404)
+
+    db.execute("""
+        DELETE FROM Reviews
+        WHERE product_id = :pid AND user_id = :uid
+    """, pid=pid, uid=current_user.id)
+
+    flash('Your review was deleted.', 'success')
+    return redirect(url_for('products_api.product_detail', pid=pid))

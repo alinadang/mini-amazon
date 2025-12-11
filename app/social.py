@@ -168,8 +168,9 @@ def review_summary():
     if sort not in ("rating", "date"):
         sort = "rating"
 
-    # ----- Products summary -----
-    # Only show products that have at least 1 review
+    # =========================
+    #  PRODUCTS SUMMARY
+    # =========================
     if sort == "rating":
         prod_order = "AVG(r.rating) DESC, COUNT(*) DESC"
     else:
@@ -197,35 +198,42 @@ def review_summary():
             "last_reviewed": row[4],
         })
 
-    # ----- Sellers summary -----
-    # Only show sellers that have at least 1 SellerReview
-    if sort == "rating":
-        seller_order = "AVG(sr.rating) DESC, COUNT(*) DESC"
-    else:
-        seller_order = "MAX(sr.date_reviewed) DESC"
-
-    seller_rows = db.execute(f"""
-        SELECT u.id,
-               u.firstname,
-               u.lastname,
-               AVG(sr.rating)::numeric AS avg_rating,
-               COUNT(*) AS num_reviews,
-               MAX(sr.date_reviewed) AS last_reviewed
-        FROM SellerReviews sr
-        JOIN Users u ON u.id = sr.seller_id
-        GROUP BY u.id, u.firstname, u.lastname
-        ORDER BY {seller_order}
-    """)
-
+    # =========================
+    #  SELLERS SUMMARY
+    # =========================
+    # This might fail if SellerReviews table doesn't exist, so be defensive.
     seller_summaries = []
-    for row in seller_rows or []:
-        seller_summaries.append({
-            "seller_id":    row[0],
-            "seller_name":  f"{row[1]} {row[2]}",
-            "avg_rating":   float(row[3]) if row[3] is not None else None,
-            "num_reviews":  int(row[4]),
-            "last_reviewed": row[5],
-        })
+    try:
+        if sort == "rating":
+            seller_order = "AVG(sr.rating) DESC, COUNT(*) DESC"
+        else:
+            seller_order = "MAX(sr.date_reviewed) DESC"
+
+        seller_rows = db.execute(f"""
+            SELECT u.id,
+                   u.firstname,
+                   u.lastname,
+                   AVG(sr.rating)::numeric AS avg_rating,
+                   COUNT(*) AS num_reviews,
+                   MAX(sr.date_reviewed) AS last_reviewed
+            FROM SellerReviews sr
+            JOIN Users u ON u.id = sr.seller_id
+            GROUP BY u.id, u.firstname, u.lastname
+            ORDER BY {seller_order}
+        """)
+
+        for row in seller_rows or []:
+            seller_summaries.append({
+                "seller_id":    row[0],
+                "seller_name":  f"{row[1]} {row[2]}",
+                "avg_rating":   float(row[3]) if row[3] is not None else None,
+                "num_reviews":  int(row[4]),
+                "last_reviewed": row[5],
+            })
+    except Exception as e:
+        # Just log it and keep going with an empty seller list
+        current_app.logger.exception("Seller summary query failed")
+        seller_summaries = []
 
     return render_template(
         "review_summary.html",
@@ -233,7 +241,3 @@ def review_summary():
         product_summaries=product_summaries,
         seller_summaries=seller_summaries,
     )
-
-
-
-

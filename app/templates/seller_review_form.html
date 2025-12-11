@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container py-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('sellers.sellers_list') }}">Sellers</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{{ url_for('sellers.seller_profile', seller_id=seller.id) }}">Seller profile</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        {% if existing %}Edit Review{% else %}Write Review{% endif %}
+      </li>
+    </ol>
+  </nav>
+
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h1 class="h5 mb-3">
+        {% if existing %}Edit your review{% else %}Write a review{% endif %}
+      </h1>
+
+      <form method="post" action="{{ url_for('users.seller_review', seller_id=seller.id) }}">
+
+          <label for="rating">Rating (1–5)</label>
+          <select class="form-control" id="rating" name="rating" required>
+            {% for r in range(1, 6) %}
+              <option value="{{ r }}"
+                      {% if existing and existing[1] == r %}selected{% endif %}>
+                {{ r }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="comment">Comment (optional)</label>
+          <textarea class="form-control" id="comment" name="comment"
+                    rows="4"
+                    placeholder="Share your experience with this seller">{{ existing[2] if existing else '' }}</textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          {% if existing %}Save changes{% else %}Submit review{% endif %}
+        </button>
+        <a color = "gray" href="{{ url_for('sellers.seller_profile', seller_id=seller.id) }}"
+           class="btn btn-secondary">
+          Cancel
+        </a>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

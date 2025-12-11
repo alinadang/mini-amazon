@@ -24,14 +24,20 @@
     </div>
 
     {% if current_user.is_authenticated %}
-    <div class="text-right">
-      <a href="{{ url_for('sellers.seller_profile', seller_id=current_user.id) }}"
-         class="btn btn-primary btn-sm">
-        Go to my seller dashboard
-      </a>
-    </div>
-    {% endif %}
-  </div>
+    <td class="text-right">
+  <a href="{{ url_for('sellers.seller_profile', seller_id=s.id) }}"
+     class="btn btn-sm btn-outline-primary">
+    View profile
+  </a>
+
+  {% if current_user.is_authenticated and current_user.id != s.id %}
+    <a href="{{ url_for('users.seller_review', seller_id=s.id) }}"
+       class="btn btn-sm btn-outline-secondary ml-2">
+      Review seller
+    </a>
+  {% endif %}
+</td>
+
 
   <div class="card shadow-sm sellers-card">
     <div class="card-body p-0">

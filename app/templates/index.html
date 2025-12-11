@@ -143,15 +143,22 @@
   </div>
 </div>
 
-<a href="{{ url_for('social.my_reviews') }}" class="btn btn-sm btn-secondary"></a>
-  My Reviews
-</a>
+<div class="d-flex justify-content-center align-items-center mt-3">
+  <a href="{{ url_for('social.my_reviews') }}"
+     class="btn btn-secondary btn-sm text-white px-4 py-2 mx-4">
+    My Reviews
+  </a>
 
-<a class="btn btn-sm btn-secondary"
-   href="{{ url_for('social.review_summary') }}"
-   style="margin-left:8px;">
-  Summary
-</a>
+  <a href="{{ url_for('social.review_summary') }}"
+     class="btn btn-secondary btn-sm text-white px-4 py-2 mx-4">
+    Summary
+  </a>
+</div>
+
+
+
+
+
 
 <script>
 function addToCart(productId) {

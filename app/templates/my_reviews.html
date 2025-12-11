@@ -1,37 +1,69 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-  <h2>My Reviews</h2>
 
-  {% if items %}
-    {% for r in items %}
-      <div class="card mb-3" style="padding:12px;">
-        <h5>{{ r.product_name }} (Product ID: {{ r.product_id }})</h5>
-        <p><strong>Rating:</strong> {{ r.rating }}/5</p>
-        <p>{{ r.comment }}</p>
-        <div style="color: #777; font-size: 0.9em;">
-          {{ r.date_reviewed }}
+<div class="container py-4">
+  <h1 class="h4 mb-4">My Reviews</h1>
+
+  {% if reviews and reviews|length > 0 %}
+    <div class="list-group">
+
+      {% for r in reviews %}
+      <div class="list-group-item">
+        <div class="d-flex justify-content-between">
+          <div>
+            {% if r.kind == 'product' %}
+              <span class="badge badge-info mr-2">Product</span>
+              <strong>{{ r.product_name }}</strong>
+            {% else %}
+              <span class="badge badge-secondary mr-2">Seller</span>
+              <strong>{{ r.seller_name }}</strong>
+            {% endif %}
+            <span class="ml-2">★ {{ r.rating }}</span>
+          </div>
+
+          <small class="text-muted">
+            {{ r.date_reviewed }}
+          </small>
         </div>
 
-        <a href="{{ url_for('products_api.product_add_review', pid=r.product_id) }}"
-           class="btn btn-sm btn-outline-primary mt-2">
-          Edit Review
-        </a>
+        {% if r.comment %}
+          <p class="mb-2 mt-2">{{ r.comment }}</p>
+        {% endif %}
 
-        <form method="post"
-            action="{{ url_for('products_api.product_review_delete', pid=r.product_id) }}"
-            style="display:inline;">
-            <button type="submit" class="btn btn-sm btn-outline-danger">
+        <!-- Action buttons -->
+        <div>
+          {% if r.kind == 'product' %}
+            <!-- Go to product page; user can edit their review there -->
+            <a href="{{ url_for('products_api.product_detail', pid=r.product_id) }}"
+               class="btn btn-sm btn-outline-primary">
+              View / edit product review
+            </a>
+          {% else %}
+            <!-- Seller review: edit + delete via *users* blueprint -->
+            <a href="{{ url_for('users.seller_review', seller_id=r.seller_id) }}"
+               class="btn btn-sm btn-outline-secondary">
+              Edit seller review
+            </a>
+
+            <form method="post"
+                  action="{{ url_for('users.delete_seller_review', seller_id=r.seller_id) }}"
+                  style="display:inline-block; margin-left:6px;">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
                 Delete
-            </button>
-        </form>
-
+              </button>
+            </form>
+          {% endif %}
+        </div>
 
       </div>
-    {% endfor %}
-  {% else %}
-    <p>You have not written any reviews yet.</p>
-  {% endif %}
+      {% endfor %}
 
+    </div>
+  {% else %}
+    <div class="alert alert-secondary">
+      You haven’t written any reviews yet.
+    </div>
+  {% endif %}
 </div>
+
 {% endblock %}

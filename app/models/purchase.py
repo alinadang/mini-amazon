@@ -31,14 +31,14 @@ class Purchase:
                 oi.quantity       AS num_items,
                 oi.fulfillment_status AS status,
                 o.total_amount    AS order_total,
-                p.creator_id      AS seller_id,
+                oi.seller_id      AS seller_id,
                 u.firstname       AS seller_firstname,
                 u.lastname        AS seller_lastname,
                 oi.fulfilled_date AS fulfilled_date
             FROM orders o
             JOIN orderitems oi ON o.id = oi.order_id
             JOIN products p ON oi.product_id = p.id
-            LEFT JOIN users u ON p.creator_id = u.id
+            LEFT JOIN users u ON oi.seller_id = u.id
             WHERE o.user_id = :uid
         '''
 
@@ -66,7 +66,7 @@ class Purchase:
 
         # Seller filter
         if seller_filter:
-            conditions.append('p.creator_id = :seller_id')
+            conditions.append('oi.seller_id = :seller_id')
             try:
                 params['seller_id'] = int(seller_filter)
             except ValueError:

@@ -1,33 +1,63 @@
 {% extends "base.html" %}
 
 {% block content %}
-<br><br>
+<div class="container py-4">
+  <h2 class="h4 mb-3">Your wishlist</h2>
 
-<h2>Your wishlist</h2>
-
-{% if not current_user.is_authenticated %}
-  <p>Please <a href="{{ url_for('users.login') }}">log in</a> to view your wishlist.</p>
-{% else %}
-  {% if items and items|length > 0 %}
-    <table class='table table-hover table-bordered container'>
-      <thead class="thead-dark">
-        <tr>
-          <th scope="col">Product ID</th>
-          <th scope="col">Added</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in items %}
-          <tr>
-            <td>{{ item.pid }}</td>
-            <td>{{ humanize_time(item.time_added) }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {% if not current_user.is_authenticated %}
+    <p>Please <a href="{{ url_for('users.login') }}">log in</a> to view your wishlist.</p>
   {% else %}
-    <p>Your wishlist is empty. Add items from the <a href="{{ url_for('index.index') }}">products page</a>.</p>
+    {% if items and items|length > 0 %}
+      <div class="table-responsive shadow-sm rounded bg-white">
+        <table class="table table-hover mb-0 align-middle">
+          <thead class="thead-dark">
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col">Name</th>
+              <th scope="col">Price</th>
+              <th scope="col">Added</th>
+              <th scope="col" class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td>
+                <a href="{{ url_for('products_api.product_detail', pid=item.pid) }}"
+                   class="d-flex align-items-center product-cell-link">
+                  <img
+                    src="{{ item.image_url or ('https://picsum.photos/seed/' ~ item.pid ~ '/64/64') }}"
+                    alt="{{ item.name }}"
+                    class="product-thumb mr-2">
+                </a>
+              </td>
+              <td>
+                <a href="{{ url_for('products_api.product_detail', pid=item.pid) }}"
+                   class="product-link">
+                  {{ item.name }}
+                </a>
+              </td>
+              <td>${{ '%.2f'|format(item.price or 0) }}</td>
+              <td>{{ humanize_time(item.time_added) }}</td>
+              <td class="text-right">
+                <form action="{{ url_for('wishlist.wishlist_remove', product_id=item.pid) }}"
+                      method="post" style="display:inline;">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    Remove
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p>
+        Your wishlist is empty. Add items from the
+        <a href="{{ url_for('products_api.product_browser') }}">product browser</a>.
+      </p>
+    {% endif %}
   {% endif %}
-{% endif %}
-
+</div>
 {% endblock %}

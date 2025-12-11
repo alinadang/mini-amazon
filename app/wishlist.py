@@ -7,8 +7,10 @@ from app.models.wishlist import WishlistItem
 
 bp = Blueprint('wishlist', __name__)
 
+
 def humanize_time(dt):
     return naturaltime(datetime.datetime.now() - dt)
+
 
 @bp.route('/wishlist')
 @login_required
@@ -17,11 +19,19 @@ def wishlist():
     return render_template(
         'wishlist.html',
         items=items,
-        humanize_time=humanize_time
+        humanize_time=humanize_time,
     )
+
 
 @bp.route('/wishlist/add/<int:product_id>', methods=['POST'])
 @login_required
 def wishlist_add(product_id):
-   WishlistItem.add(current_user.id, product_id)
-   return redirect(url_for('wishlist.wishlist'))
+    WishlistItem.add(current_user.id, product_id)
+    return redirect(url_for('wishlist.wishlist'))
+
+
+@bp.route('/wishlist/remove/<int:product_id>', methods=['POST'])
+@login_required
+def wishlist_remove(product_id):
+    WishlistItem.remove(current_user.id, product_id)
+    return redirect(url_for('wishlist.wishlist'))

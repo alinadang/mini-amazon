@@ -188,7 +188,7 @@
                   {% if current_user.is_authenticated %}
                     <button type="button"
                             class="btn btn-sm btn-outline-secondary"
-                            onclick="wishlistAdd({{ p.id }})">
+                            onclick="wishlistAdd('{{ p.id }}')">
                       Add to wishlist
                     </button>
                   {% else %}

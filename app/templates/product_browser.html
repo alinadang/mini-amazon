@@ -186,12 +186,11 @@
                 <td>{{ 'Yes' if p.available else 'No' }}</td>
                 <td class="text-right">
                   {% if current_user.is_authenticated %}
-                    <form action="{{ url_for('wishlist.wishlist_add', product_id=p.id) }}"
-                          method="post" style="display:inline;">
-                      <button type="submit" class="btn btn-sm btn-outline-secondary">
-                        Add to wishlist
-                      </button>
-                    </form>
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary"
+                            onclick="wishlistAdd({{ p.id }})">
+                      Add to wishlist
+                    </button>
                   {% else %}
                     <a href="{{ url_for('users.login') }}" class="btn btn-sm btn-outline-secondary">
                       Log in to save
@@ -239,6 +238,25 @@
     </div>
   </form>
 </div>
+<script>
+function wishlistAdd(productId) {
+  fetch(`{{ url_for('wishlist.wishlist_add', product_id=0) }}`
+          .replace('0', productId.toString()), {
+    method: 'POST',
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  }).then(resp => {
+    if (resp.redirected) {
+      window.location = resp.url;
+    } else {
+      window.location = "{{ url_for('wishlist.wishlist') }}";
+    }
+  }).catch(() => {
+    window.location = "{{ url_for('wishlist.wishlist') }}";
+  });
+}
+</script>
 
 <script>
 document.getElementById("browserForm").addEventListener("submit", function(e){
@@ -255,5 +273,6 @@ document.getElementById("browserForm").addEventListener("submit", function(e){
     if (uiMax && max > uiMax) { alert("Maximum price exceeds allowed maximum."); e.preventDefault(); return; }
   }
 });
+
 </script>
 {% endblock %}

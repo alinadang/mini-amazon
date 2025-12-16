@@ -1,29 +1,17 @@
-# Skeleton Code for CompSci 316/516 Standard Course Project.
+# Mini Amazon
 
-Originally created by [Rickard
-Stureborg](http://www.rickard.stureborg.com) and [Yihao
-Hu](https://www.linkedin.com/in/yihaoh/) for Fall 2021.  Amended by
-various teaching staff in subsequent years.
+This repository contains a finished implementation of the Mini-Amazon project: a small e-commerce web application built with Python + Flask + PostgreSQL. Sellers can create product listings and manage inventory; users can register, browse, add to cart, checkout with virtual currency, and leave feedback.
 
-We assume you are in your course container shell.  If you have a
-different setup, your mileage with the following instructions may
-vary.
+## Installing
 
-## Installing the Current Skeleton
-
-1. One (and only one) team member should fork this repo by clicking
-   the small 'Fork' button at the very top right on GitLab.  It's
+1. Fork this repo by clicking the small 'Fork' button at the very top right.  It's
    important that you fork first, because if you clone this repo
    directly you won't be able to push changes (save your progress)
-   back to this repo (which is owned by the teaching staff).  Name
+   back to this repo.  Name
    your forked repo as you prefer.
 
    In your newly forked repo, find the blue "Clone" button.  Copy the
-   "Clone with SSH" text.  Add your teammates as members of your
-   project as "Maintainers."  Share the copied text with your
-   teammates so they have access to this repo too.
-
-   The remaining steps should be carried out by all team members.
+   "Clone with SSH" text.
 
 2. In your container shell, issue the command `git clone
    THE_TEXT_YOU_JUST_COPIED` (make sure to replace
@@ -56,18 +44,6 @@ Depending on your setup, the URL will be different:
 * If you use containers on your own laptop, point your browser to
   http://localhost:8080/
 
-* If you use the Duke OIT container, visit
-  https://cmgr.oit.duke.edu/containers and open the CONTAINER CONTROLS
-  info pane for your CS316/516 container.  There will be a line specifying
-  a user-specific URL for accessing a Flask app.  Point your browser
-  to that URL.
-
-  - If you are using VSCode to access your Duke OIT container and
-    run/debug your project from there (by following these
-    instructions), then VSCode will do some (SSH port forwarding)
-    magic to make your Flask app also accessible at
-    http://localhost:8080/
-
 To stop your app, type <kbd>CTRL</kbd>-<kbd>C</kbd> in the container
 shell; that will take you back to the command-line prompt, still
 inside the `poetry` environment. If you are all done with this app for
@@ -91,7 +67,7 @@ The `db/` subdirectory of this repository contains files useful for
 (re-)initializing the database if needed.  To (re-)initialize the
 database, first make sure that you are NOT running your Flask server
 or any `psql` sessions; then, from your repository directory, run
-`db/setup.sh`.
+`./db/setup.sh generated`.
 
 * You will see lots of text flying by --- make sure you go through
   them carefully and verify there was no errors.  Any error in
@@ -104,8 +80,8 @@ or any `psql` sessions; then, from your repository directory, run
   seem to find where you are running them, a sure way to get rid of
   them is to stop/start your container.
 
-To change the database schema, modify `db/create.sql` and
-`db/load.sql` as needed.  Make sure you run `db/setup.sh` to reflect
+The database schema is defined in `db/create.sql` and
+`db/load.sql`.  Make sure you run `db/setup.sh` to reflect
 the changes.
 
 Under `db/data/`, you will find CSV files that `db/load.sql` uses to
